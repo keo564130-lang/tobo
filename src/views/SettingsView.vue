@@ -86,15 +86,16 @@
               <button
                 v-for="s in fontScales"
                 :key="s.scale"
-                class="py-2 rounded-2xl border text-xs font-medium flex items-center justify-center transition-all m3-press-effect cursor-pointer"
+                class="py-2 px-1 rounded-2xl border flex flex-col items-center justify-center transition-all m3-press-effect cursor-pointer text-center"
                 :class="[
                   themeStore.fontScale === s.scale
-                    ? 'bg-primary-container text-primary-on border-primary font-bold'
-                    : 'bg-surface-low border-surface-high text-surface-onVariant'
+                    ? 'bg-primary-container text-primary-onContainer border-primary font-bold shadow-xs'
+                    : 'bg-surface-low border-surface-high text-surface-onVariant hover:bg-surface-high'
                 ]"
                 @click="themeStore.setFontScale(s.scale)"
               >
-                {{ s.label }}
+                <span class="text-xs font-bold leading-tight">{{ s.percent }}</span>
+                <span class="text-[10px] leading-tight opacity-75 truncate max-w-full">{{ s.label }}</span>
               </button>
             </div>
           </div>
@@ -116,12 +117,19 @@
               <span class="text-sm font-semibold text-surface-on">Двухфакторная аутентификация (2FA)</span>
               <span class="text-xs text-surface-onVariant/70">Защита аккаунта кодами TOTP Authenticator</span>
             </div>
-            <input
-              type="checkbox"
-              :checked="settingsStore.settings.security.two_factor_enabled"
-              class="w-5 h-5 accent-primary rounded cursor-pointer"
-              @change="toggle2FA"
-            />
+            <button
+              type="button"
+              role="switch"
+              :aria-checked="settingsStore.settings.security.two_factor_enabled"
+              class="relative inline-flex w-12 h-6 rounded-full transition-colors duration-200 ease-in-out cursor-pointer p-0.5 shrink-0 focus:outline-none"
+              :class="settingsStore.settings.security.two_factor_enabled ? 'bg-primary' : 'bg-surface-high'"
+              @click="toggle2FA"
+            >
+              <span
+                class="pointer-events-none inline-block w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-in-out"
+                :class="settingsStore.settings.security.two_factor_enabled ? 'translate-x-6' : 'translate-x-0'"
+              />
+            </button>
           </div>
 
           <!-- Форма смены пароля -->
@@ -287,12 +295,19 @@
               <span class="text-xs font-semibold text-surface-on">PWA Web Push уведомления</span>
               <span class="text-[11px] text-surface-onVariant/70">Мгновенные оповещения в фоне</span>
             </div>
-            <input
-              v-model="settingsStore.settings.notifications.push_enabled"
-              type="checkbox"
-              class="w-5 h-5 accent-primary rounded cursor-pointer"
-              @change="togglePush"
-            />
+            <button
+              type="button"
+              role="switch"
+              :aria-checked="settingsStore.settings.notifications.push_enabled"
+              class="relative inline-flex w-12 h-6 rounded-full transition-colors duration-200 ease-in-out cursor-pointer p-0.5 shrink-0 focus:outline-none"
+              :class="settingsStore.settings.notifications.push_enabled ? 'bg-primary' : 'bg-surface-high'"
+              @click="togglePush"
+            >
+              <span
+                class="pointer-events-none inline-block w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-in-out"
+                :class="settingsStore.settings.notifications.push_enabled ? 'translate-x-6' : 'translate-x-0'"
+              />
+            </button>
           </div>
 
           <!-- Звук для личных сообщений -->
@@ -301,12 +316,19 @@
               <span class="text-xs font-semibold text-surface-on">Звук личных сообщений</span>
               <span class="text-[11px] text-surface-onVariant/70">Оповещения в диалогах</span>
             </div>
-            <input
-              v-model="settingsStore.settings.notifications.direct_sound"
-              type="checkbox"
-              class="w-5 h-5 accent-primary rounded cursor-pointer"
-              @change="settingsStore.saveSettings"
-            />
+            <button
+              type="button"
+              role="switch"
+              :aria-checked="settingsStore.settings.notifications.direct_sound"
+              class="relative inline-flex w-12 h-6 rounded-full transition-colors duration-200 ease-in-out cursor-pointer p-0.5 shrink-0 focus:outline-none"
+              :class="settingsStore.settings.notifications.direct_sound ? 'bg-primary' : 'bg-surface-high'"
+              @click="settingsStore.settings.notifications.direct_sound = !settingsStore.settings.notifications.direct_sound; settingsStore.saveSettings()"
+            >
+              <span
+                class="pointer-events-none inline-block w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-in-out"
+                :class="settingsStore.settings.notifications.direct_sound ? 'translate-x-6' : 'translate-x-0'"
+              />
+            </button>
           </div>
 
           <!-- Звук для групп -->
@@ -315,12 +337,19 @@
               <span class="text-xs font-semibold text-surface-on">Звук групповых чатов</span>
               <span class="text-[11px] text-surface-onVariant/70">Оповещения в беседах</span>
             </div>
-            <input
-              v-model="settingsStore.settings.notifications.group_sound"
-              type="checkbox"
-              class="w-5 h-5 accent-primary rounded cursor-pointer"
-              @change="settingsStore.saveSettings"
-            />
+            <button
+              type="button"
+              role="switch"
+              :aria-checked="settingsStore.settings.notifications.group_sound"
+              class="relative inline-flex w-12 h-6 rounded-full transition-colors duration-200 ease-in-out cursor-pointer p-0.5 shrink-0 focus:outline-none"
+              :class="settingsStore.settings.notifications.group_sound ? 'bg-primary' : 'bg-surface-high'"
+              @click="settingsStore.settings.notifications.group_sound = !settingsStore.settings.notifications.group_sound; settingsStore.saveSettings()"
+            >
+              <span
+                class="pointer-events-none inline-block w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-in-out"
+                :class="settingsStore.settings.notifications.group_sound ? 'translate-x-6' : 'translate-x-0'"
+              />
+            </button>
           </div>
 
           <!-- Звук для каналов -->
@@ -329,12 +358,19 @@
               <span class="text-xs font-semibold text-surface-on">Звук каналов</span>
               <span class="text-[11px] text-surface-onVariant/70">Оповещения о трансляциях</span>
             </div>
-            <input
-              v-model="settingsStore.settings.notifications.channel_sound"
-              type="checkbox"
-              class="w-5 h-5 accent-primary rounded cursor-pointer"
-              @change="settingsStore.saveSettings"
-            />
+            <button
+              type="button"
+              role="switch"
+              :aria-checked="settingsStore.settings.notifications.channel_sound"
+              class="relative inline-flex w-12 h-6 rounded-full transition-colors duration-200 ease-in-out cursor-pointer p-0.5 shrink-0 focus:outline-none"
+              :class="settingsStore.settings.notifications.channel_sound ? 'bg-primary' : 'bg-surface-high'"
+              @click="settingsStore.settings.notifications.channel_sound = !settingsStore.settings.notifications.channel_sound; settingsStore.saveSettings()"
+            >
+              <span
+                class="pointer-events-none inline-block w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-in-out"
+                :class="settingsStore.settings.notifications.channel_sound ? 'translate-x-6' : 'translate-x-0'"
+              />
+            </button>
           </div>
 
           <!-- Вибрация -->
@@ -343,12 +379,19 @@
               <span class="text-xs font-semibold text-surface-on">Тактильная виброотдача</span>
               <span class="text-[11px] text-surface-onVariant/70">Haptic feedback при событиях</span>
             </div>
-            <input
-              v-model="settingsStore.settings.notifications.vibration"
-              type="checkbox"
-              class="w-5 h-5 accent-primary rounded cursor-pointer"
-              @change="settingsStore.saveSettings"
-            />
+            <button
+              type="button"
+              role="switch"
+              :aria-checked="settingsStore.settings.notifications.vibration"
+              class="relative inline-flex w-12 h-6 rounded-full transition-colors duration-200 ease-in-out cursor-pointer p-0.5 shrink-0 focus:outline-none"
+              :class="settingsStore.settings.notifications.vibration ? 'bg-primary' : 'bg-surface-high'"
+              @click="settingsStore.settings.notifications.vibration = !settingsStore.settings.notifications.vibration; settingsStore.saveSettings()"
+            >
+              <span
+                class="pointer-events-none inline-block w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-in-out"
+                :class="settingsStore.settings.notifications.vibration ? 'translate-x-6' : 'translate-x-0'"
+              />
+            </button>
           </div>
         </M3Card>
       </section>
@@ -479,10 +522,10 @@ const themeModes: { key: ThemeMode; label: string; icon: string }[] = [
   { key: 'system', label: 'Система', icon: 'settings_brightness' }
 ];
 
-const fontScales: { scale: FontScale; label: string }[] = [
-  { scale: '90', label: '90% (Компактный)' },
-  { scale: '100', label: '100% (Стандарт)' },
-  { scale: '115', label: '115% (Крупный)' }
+const fontScales: { scale: FontScale; percent: string; label: string }[] = [
+  { scale: '90', percent: '90%', label: 'Компактный' },
+  { scale: '100', percent: '100%', label: 'Стандарт' },
+  { scale: '115', percent: '115%', label: 'Крупный' }
 ];
 
 function toggle2FA() {

@@ -61,22 +61,28 @@ html[data-theme-palette="peach"] {
 
 /* Бархатно-графитовая темная тема (Pastel Dark) */
 .dark {
-  --color-surface: #131416;
-  --color-surface-dim: #0F1012;
-  --color-surface-bright: #26282E;
-  --color-surface-lowest: #0B0C0E;
-  --color-surface-low: #181A1D;
-  --color-surface-container: #1E2024;
-  --color-surface-high: #24272C;
-  --color-surface-highest: #2C2F36;
+  --color-surface: #191B1F;
+  --color-surface-dim: #15171A;
+  --color-surface-bright: #2C2F36;
+  --color-surface-lowest: #121417;
+  --color-surface-low: #1E2025;
+  --color-surface-container: #23262C;
+  --color-surface-high: #2A2D34;
+  --color-surface-highest: #32363F;
   --color-on-surface: #E4E5EA;
   --color-on-surface-variant: #B9BCC5;
-  --color-outline: #898D97;
-  --color-outline-variant: #32353D;
+  --color-outline: #484B54;
+  --color-outline-variant: #2E323A;
+}
+
+.dark .border-surface-high\/60,
+.dark .border-surface-high\/50 {
+  border-color: rgba(var(--color-primary-rgb, 158, 183, 229), 0.15);
 }
 
 html.dark[data-theme-palette="sky"] {
   --color-primary: #9EB7E5;
+  --color-primary-rgb: 158, 183, 229;
   --color-primary-container: #202D44;
   --color-on-primary: #0F1E38;
   --color-on-primary-container: #D1E1FC;
@@ -84,6 +90,7 @@ html.dark[data-theme-palette="sky"] {
 
 html.dark[data-theme-palette="lavender"] {
   --color-primary: #D6C7E5;
+  --color-primary-rgb: 214, 199, 229;
   --color-primary-container: #362846;
   --color-on-primary: #210F33;
   --color-on-primary-container: #EFE8F7;
@@ -91,6 +98,7 @@ html.dark[data-theme-palette="lavender"] {
 
 html.dark[data-theme-palette="mint"] {
   --color-primary: #BCE7D0;
+  --color-primary-rgb: 188, 231, 208;
   --color-primary-container: #1D3B2D;
   --color-on-primary: #072215;
   --color-on-primary-container: #DFF4E9;
@@ -98,6 +106,7 @@ html.dark[data-theme-palette="mint"] {
 
 html.dark[data-theme-palette="peach"] {
   --color-primary: #FAD2B8;
+  --color-primary-rgb: 250, 210, 184;
   --color-primary-container: #462A1F;
   --color-on-primary: #331107;
   --color-on-primary-container: #FDE8DD;

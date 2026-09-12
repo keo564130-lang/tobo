@@ -12,7 +12,7 @@
       </div>
 
       <!-- Центральная часть: слот для кастомного контента/поиска -->
-      <div class="flex-1 px-3 flex items-center justify-center">
+      <div v-if="$slots.center" class="flex-1 px-3 flex items-center justify-center min-w-0">
         <slot name="center" />
       </div>
 

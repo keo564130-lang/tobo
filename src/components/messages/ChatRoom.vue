@@ -183,8 +183,26 @@
 
     <!-- Нижняя панель ввода с учетом iOS Safe Area -->
     <footer class="fixed bottom-3 left-0 right-0 z-40 px-4 max-w-2xl mx-auto pointer-events-none">
-      <div class="pointer-events-auto rounded-3xl bg-surface-lowest/95 backdrop-blur-xl shadow-floating-bar border border-surface-high/50 p-1.5 flex items-center gap-2">
-        
+      <!-- Плашка "Канал только для чтения" для обычных подписчиков -->
+      <div
+        v-if="chat?.type === 'channel' && chat?.created_by !== authStore.user.id"
+        class="pointer-events-auto rounded-3xl bg-surface-lowest/95 backdrop-blur-xl shadow-floating-bar border border-surface-high/50 px-4 py-3 flex items-center justify-between"
+      >
+        <span class="text-xs text-surface-onVariant font-medium">Канал только для чтения</span>
+        <button
+          class="text-xs font-bold text-primary flex items-center gap-1.5 cursor-pointer hover:opacity-85 transition-opacity"
+          @click="toggleMute"
+        >
+          <span class="material-symbols-rounded text-base">{{ isMuted ? 'notifications_off' : 'notifications' }}</span>
+          <span>{{ isMuted ? 'Включить звук' : 'Без звука' }}</span>
+        </button>
+      </div>
+
+      <!-- Стандартная панель ввода для личных чатов, групп и авторов каналов -->
+      <div
+        v-else
+        class="pointer-events-auto rounded-3xl bg-surface-lowest/95 backdrop-blur-xl shadow-floating-bar border border-surface-high/50 p-1.5 flex items-center gap-2"
+      >
         <!-- Режим записи голосового сообщения -->
         <VoiceRecorder
           v-if="isRecordingVoice"

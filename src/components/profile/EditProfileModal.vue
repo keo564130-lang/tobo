@@ -48,24 +48,71 @@
         />
       </div>
 
-      <!-- Ссылка на аватар -->
+      <!-- Выбор аватара -->
       <div>
-        <label class="block text-xs font-semibold text-surface-on mb-1">URL аватара</label>
-        <input
-          v-model="avatarUrl"
-          type="text"
-          class="w-full px-3.5 py-2 rounded-2xl bg-surface-low border border-surface-high/60 text-xs text-surface-on focus:outline-none focus:ring-2 focus:ring-primary"
-        />
+        <label class="block text-xs font-semibold text-surface-on mb-1.5">Аватар профиля</label>
+        <div class="flex items-center gap-3">
+          <img
+            :src="avatarUrl || alexAvatarSvg"
+            alt="Аватар"
+            class="w-14 h-14 rounded-full object-cover border-2 border-primary shrink-0 shadow-xs"
+          />
+          <div class="flex-1 flex flex-col gap-2 min-w-0">
+            <!-- Кнопка загрузки файла -->
+            <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-low border border-surface-high/60 text-xs font-medium text-surface-on hover:bg-surface-high cursor-pointer transition-colors m3-press-effect w-fit">
+              <span class="material-symbols-rounded text-base text-primary">upload</span>
+              <span>Загрузить фото</span>
+              <input type="file" accept="image/*" class="hidden" @change="handleAvatarUpload" />
+            </label>
+            <!-- Горизонтальные пресеты -->
+            <div class="flex items-center gap-2 overflow-x-auto py-1">
+              <button
+                v-for="preset in presetAvatars"
+                :key="preset.label"
+                type="button"
+                :title="preset.label"
+                class="w-8 h-8 rounded-full border-2 transition-all shrink-0 m3-press-effect overflow-hidden cursor-pointer"
+                :class="avatarUrl === preset.url ? 'border-primary ring-2 ring-primary/40 scale-105' : 'border-transparent opacity-75 hover:opacity-100'"
+                @click="avatarUrl = preset.url"
+              >
+                <img :src="preset.url" :alt="preset.label" class="w-full h-full object-cover" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Ссылка на обложку -->
+      <!-- Выбор обложки профиля -->
       <div>
-        <label class="block text-xs font-semibold text-surface-on mb-1">URL баннера обложки</label>
-        <input
-          v-model="coverUrl"
-          type="text"
-          class="w-full px-3.5 py-2 rounded-2xl bg-surface-low border border-surface-high/60 text-xs text-surface-on focus:outline-none focus:ring-2 focus:ring-primary"
-        />
+        <label class="block text-xs font-semibold text-surface-on mb-1.5">Обложка профиля</label>
+        <div class="flex flex-col gap-2">
+          <div class="relative w-full h-16 rounded-2xl overflow-hidden border border-surface-high/50 bg-surface-low">
+            <img
+              :src="coverUrl || alexCoverSvg"
+              alt="Обложка"
+              class="w-full h-full object-cover"
+            />
+            <label class="absolute right-2 bottom-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-xs text-white text-[11px] font-medium hover:bg-black/70 cursor-pointer transition-colors m3-press-effect">
+              <span class="material-symbols-rounded text-sm">photo_camera</span>
+              <span>Загрузить</span>
+              <input type="file" accept="image/*" class="hidden" @change="handleCoverUpload" />
+            </label>
+          </div>
+          <!-- Горизонтальные пресеты обложек -->
+          <div class="flex items-center gap-2 overflow-x-auto py-1">
+            <button
+              v-for="preset in presetCovers"
+              :key="preset.label"
+              type="button"
+              :title="preset.label"
+              class="h-9 w-20 rounded-xl border-2 transition-all shrink-0 m3-press-effect overflow-hidden cursor-pointer"
+              :class="coverUrl === preset.url ? 'border-primary ring-2 ring-primary/40 scale-105' : 'border-transparent opacity-75 hover:opacity-100'"
+              @click="coverUrl = preset.url"
+            >
+              <img :src="preset.url" :alt="preset.label" class="w-full h-full object-cover" />
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Кнопки сохранения -->
@@ -87,6 +134,28 @@ import M3BottomSheet from '@/components/ui/M3BottomSheet.vue';
 import M3Button from '@/components/ui/M3Button.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useToastStore } from '@/stores/toast';
+import { 
+  alexAvatarSvg, 
+  mishaAvatarSvg, 
+  annaAvatarSvg, 
+  toboOfficialAvatarSvg,
+  alexCoverSvg,
+  mishaCoverSvg,
+  annaCoverSvg
+} from '@/lib/mockData';
+
+const presetAvatars = [
+  { label: 'Лазурный', url: alexAvatarSvg },
+  { label: 'Лавандовый', url: mishaAvatarSvg },
+  { label: 'Мятный', url: annaAvatarSvg },
+  { label: 'tobo', url: toboOfficialAvatarSvg }
+];
+
+const presetCovers = [
+  { label: 'Лазурная волна', url: alexCoverSvg },
+  { label: 'Лаванда и персик', url: mishaCoverSvg },
+  { label: 'Мятная гармония', url: annaCoverSvg }
+];
 
 const props = defineProps<{
   modelValue: boolean;
@@ -105,6 +174,34 @@ const username = ref(authStore.user.username);
 const bio = ref(authStore.user.bio || '');
 const avatarUrl = ref(authStore.user.avatar_url || '');
 const coverUrl = ref(authStore.user.cover_url || '');
+
+function handleAvatarUpload(e: Event) {
+  const target = e.target as HTMLInputElement;
+  if (target.files && target.files[0]) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        avatarUrl.value = reader.result;
+        toastStore.show('Аватар загружен', 'info');
+      }
+    };
+    reader.readAsDataURL(target.files[0]);
+  }
+}
+
+function handleCoverUpload(e: Event) {
+  const target = e.target as HTMLInputElement;
+  if (target.files && target.files[0]) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        coverUrl.value = reader.result;
+        toastStore.show('Обложка загружена', 'info');
+      }
+    };
+    reader.readAsDataURL(target.files[0]);
+  }
+}
 
 watch(
   () => props.modelValue,

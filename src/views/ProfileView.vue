@@ -4,8 +4,8 @@
     <FloatingTopBar>
       <template #leading>
         <div class="flex items-center gap-2">
-          <span class="font-extrabold tracking-tight text-2xl text-primary font-mono select-none">tobo</span>
-          <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary-container text-primary-onContainer">
+          <span class="font-extrabold tracking-tight text-2xl leading-none text-primary font-mono select-none">tobo</span>
+          <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary-container text-primary-onContainer leading-normal">
             Профиль
           </span>
         </div>
@@ -14,18 +14,18 @@
       <template #trailing>
         <!-- Переключатель тестового аккаунта ("Алексей" <-> "Миша") -->
         <button
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-low text-xs font-semibold text-surface-on hover:bg-surface-high transition-colors m3-press-effect cursor-pointer"
+          class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-surface-low text-xs font-semibold text-surface-on hover:bg-surface-high transition-colors m3-press-effect cursor-pointer max-w-[110px] sm:max-w-[140px] shrink-0"
           title="Сменить активного пользователя для проверки диалогов"
           @click="toggleDemoUser"
         >
-          <span class="material-symbols-rounded text-sm text-primary">swap_horiz</span>
-          <span class="text-primary font-mono font-bold">{{ authStore.user.first_name }}</span>
+          <span class="material-symbols-rounded text-sm text-primary shrink-0">swap_horiz</span>
+          <span class="text-primary font-mono font-bold truncate">{{ authStore.user.first_name }}</span>
         </button>
 
         <!-- Кнопка перехода в Настройки -->
         <router-link
           to="/settings"
-          class="w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect"
+          class="w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect shrink-0"
           title="Настройки приложения"
         >
           <span class="material-symbols-rounded text-2xl">settings</span>
@@ -90,7 +90,7 @@
         to="/settings"
         class="p-4 rounded-3xl bg-surface-lowest border border-surface-high/60 shadow-xs hover:shadow-elevation-1 transition-all flex flex-col justify-between h-28 m3-press-effect"
       >
-        <div class="w-8 h-8 rounded-2xl bg-primary-container text-primary-on flex items-center justify-center">
+        <div class="w-8 h-8 rounded-2xl bg-primary-container text-primary-onContainer flex items-center justify-center">
           <span class="material-symbols-rounded text-lg">tune</span>
         </div>
         <div>
@@ -104,7 +104,7 @@
         class="p-4 rounded-3xl bg-surface-lowest border border-surface-high/60 shadow-xs hover:shadow-elevation-1 transition-all flex flex-col justify-between h-28 cursor-pointer m3-press-effect"
         @click="goToSavedChat"
       >
-        <div class="w-8 h-8 rounded-2xl bg-secondary-container text-secondary-on flex items-center justify-center">
+        <div class="w-8 h-8 rounded-2xl bg-secondary-container text-secondary-onContainer flex items-center justify-center">
           <span class="material-symbols-rounded text-lg">bookmark</span>
         </div>
         <div>
@@ -118,7 +118,7 @@
         class="p-4 rounded-3xl bg-surface-lowest border border-surface-high/60 shadow-xs hover:shadow-elevation-1 transition-all flex flex-col justify-between h-28 cursor-pointer m3-press-effect"
         @click="toastStore.show('Галерея медиафайлов синхронизирована', 'info')"
       >
-        <div class="w-8 h-8 rounded-2xl bg-tertiary-container text-tertiary-on flex items-center justify-center">
+        <div class="w-8 h-8 rounded-2xl bg-tertiary-container text-tertiary-onContainer flex items-center justify-center">
           <span class="material-symbols-rounded text-lg">photo_library</span>
         </div>
         <div>

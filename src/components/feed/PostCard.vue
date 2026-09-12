@@ -16,10 +16,10 @@
             <!-- Бейдж верификации команды tobo -->
             <span
               v-if="post.author?.username === 'tobo_team'"
-              class="px-1.5 py-0.2 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center gap-0.5"
+              class="material-symbols-rounded text-primary text-base select-none shrink-0"
+              title="Официальный аккаунт"
             >
-              <span class="material-symbols-rounded text-xs">verified</span>
-              <span>official</span>
+              verified
             </span>
           </div>
           <div class="flex items-center gap-1.5 text-xs text-surface-onVariant/60">
@@ -142,7 +142,7 @@
         </button>
 
         <!-- Просмотры -->
-        <div class="flex items-center gap-1 px-2 text-surface-onVariant/50 font-mono">
+        <div class="flex items-center gap-1 text-surface-onVariant/50 font-mono shrink-0 pr-1 text-xs">
           <span class="material-symbols-rounded text-base">visibility</span>
           <span>{{ post.views_count }}</span>
         </div>

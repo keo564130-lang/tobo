@@ -4,8 +4,8 @@
     <FloatingTopBar>
       <template #leading>
         <div class="flex items-center gap-2">
-          <span class="font-extrabold tracking-tight text-2xl text-primary font-mono select-none">tobo</span>
-          <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-primary-container text-primary-onContainer">
+          <span class="font-extrabold tracking-tight text-2xl leading-none text-primary font-mono select-none">tobo</span>
+          <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary-container text-primary-onContainer leading-normal">
             Чаты
           </span>
         </div>
@@ -123,21 +123,21 @@
           <!-- Иконка типа -->
           <div
             v-if="chat.type === 'saved'"
-            class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-secondary-container text-secondary-on flex items-center justify-center shadow-xs"
+            class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-secondary-container text-secondary-onContainer flex items-center justify-center ring-2 ring-surface-lowest shadow-xs"
           >
-            <span class="material-symbols-rounded text-xs">bookmark</span>
+            <span class="material-symbols-rounded text-[10px]">bookmark</span>
           </div>
           <div
             v-else-if="chat.type === 'channel'"
-            class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-primary-container text-primary-on flex items-center justify-center shadow-xs"
+            class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary-container text-primary-onContainer flex items-center justify-center ring-2 ring-surface-lowest shadow-xs"
           >
-            <span class="material-symbols-rounded text-xs">campaign</span>
+            <span class="material-symbols-rounded text-[10px]">campaign</span>
           </div>
           <div
             v-else-if="chat.type === 'group'"
-            class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-tertiary-container text-tertiary-on flex items-center justify-center shadow-xs"
+            class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-tertiary-container text-tertiary-onContainer flex items-center justify-center ring-2 ring-surface-lowest shadow-xs"
           >
-            <span class="material-symbols-rounded text-xs">group</span>
+            <span class="material-symbols-rounded text-[10px]">group</span>
           </div>
         </div>
 
@@ -151,9 +151,10 @@
               <!-- Метка официального канала -->
               <span
                 v-if="chat.title === 'Канал Разработки'"
-                class="px-1.5 py-0.2 rounded-full bg-primary/20 text-primary text-[10px] font-bold shrink-0"
+                class="material-symbols-rounded text-primary text-base select-none shrink-0"
+                title="Официальный канал"
               >
-                official
+                verified
               </span>
             </div>
             <!-- Время последнего сообщения -->
