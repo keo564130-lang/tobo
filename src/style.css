@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Базовая пастельная тема: Sky (Лазурно-васильковый) */
+  --color-primary: #9EB7E5;
+  --color-primary-container: #E6EFFD;
+  --color-on-primary: #1B315B;
+  --color-on-primary-container: #0F1E38;
+
+  --color-secondary: #D6C7E5;
+  --color-secondary-container: #F3EEF9;
+  --color-on-secondary: #3A284E;
+  --color-on-secondary-container: #221233;
+
+  --color-tertiary: #BCE7D0;
+  --color-tertiary-container: #EDF9F2;
+  --color-on-tertiary: #16432B;
+  --color-on-tertiary-container: #0B2416;
+
+  /* Светлые поверхности (молочно-пудровые) */
+  --color-surface: #F9F9FB;
+  --color-surface-dim: #EDEDF2;
+  --color-surface-bright: #FFFFFF;
+  --color-surface-lowest: #FFFFFF;
+  --color-surface-low: #F3F3F7;
+  --color-surface-container: #EDEDF2;
+  --color-surface-high: #E7E7ED;
+  --color-surface-highest: #E1E1E8;
+  --color-on-surface: #1A1C1E;
+  --color-on-surface-variant: #44474E;
+  --color-outline: #74777F;
+  --color-outline-variant: #E1E3E8;
+
+  /* Масштаб шрифта */
+  --font-scale: 100%;
+}
+
+/* Пастельные модификаторы палитр */
+html[data-theme-palette="lavender"] {
+  --color-primary: #C3B1E1;
+  --color-primary-container: #F1ECF8;
+  --color-on-primary: #341D4E;
+  --color-on-primary-container: #210F33;
+}
+
+html[data-theme-palette="mint"] {
+  --color-primary: #95D5B2;
+  --color-primary-container: #E5F6EE;
+  --color-on-primary: #123C27;
+  --color-on-primary-container: #072215;
+}
+
+html[data-theme-palette="peach"] {
+  --color-primary: #F7B297;
+  --color-primary-container: #FDEEE7;
+  --color-on-primary: #4F2012;
+  --color-on-primary-container: #331107;
+}
+
+/* Бархатно-графитовая темная тема (Pastel Dark) */
+.dark {
+  --color-surface: #131416;
+  --color-surface-dim: #0F1012;
+  --color-surface-bright: #26282E;
+  --color-surface-lowest: #0B0C0E;
+  --color-surface-low: #181A1D;
+  --color-surface-container: #1E2024;
+  --color-surface-high: #24272C;
+  --color-surface-highest: #2C2F36;
+  --color-on-surface: #E4E5EA;
+  --color-on-surface-variant: #B9BCC5;
+  --color-outline: #898D97;
+  --color-outline-variant: #32353D;
+}
+
+html.dark[data-theme-palette="sky"] {
+  --color-primary: #9EB7E5;
+  --color-primary-container: #202D44;
+  --color-on-primary: #0F1E38;
+  --color-on-primary-container: #D1E1FC;
+}
+
+html.dark[data-theme-palette="lavender"] {
+  --color-primary: #D6C7E5;
+  --color-primary-container: #362846;
+  --color-on-primary: #210F33;
+  --color-on-primary-container: #EFE8F7;
+}
+
+html.dark[data-theme-palette="mint"] {
+  --color-primary: #BCE7D0;
+  --color-primary-container: #1D3B2D;
+  --color-on-primary: #072215;
+  --color-on-primary-container: #DFF4E9;
+}
+
+html.dark[data-theme-palette="peach"] {
+  --color-primary: #FAD2B8;
+  --color-primary-container: #462A1F;
+  --color-on-primary: #331107;
+  --color-on-primary-container: #FDE8DD;
+}
+
+html {
+  font-size: var(--font-scale);
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}
+
+/* Material 3 Expressive сглаживание и скроллбары */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(158, 183, 229, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(158, 183, 229, 0.6);
+}
+
+/* Тактильные пружинные переходы */
+.spring-transition {
+  transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-duration: 300ms;
+}
+
+.m3-press-effect:active {
+  transform: scale(0.96);
+}
+
+/* Анимация пульсации и волны */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(0.98); }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s infinite ease-in-out;
+}

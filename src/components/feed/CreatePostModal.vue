@@ -1,0 +1,194 @@
+<template>
+  <M3BottomSheet
+    :model-value="modelValue"
+    title="Новая публикация"
+    @update:model-value="$emit('update:modelValue', $event)"
+  >
+    <div class="flex flex-col gap-4">
+      <!-- Автор поста -->
+      <div class="flex items-center gap-3">
+        <M3Avatar
+          :src="authStore.user.avatar_url"
+          :name="authStore.user.first_name"
+          size="md"
+        />
+        <div class="flex flex-col">
+          <span class="text-sm font-bold text-surface-on">
+            {{ authStore.user.first_name }} {{ authStore.user.last_name || '' }}
+          </span>
+          <!-- Селектор аудитории -->
+          <div class="flex items-center gap-2 mt-0.5">
+            <button
+              class="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs transition-colors"
+              :class="audience === 'all' ? 'bg-primary-container text-primary-on font-semibold' : 'bg-surface-low text-surface-onVariant'"
+              @click="audience = 'all'"
+            >
+              <span>🌐 Для всех</span>
+            </button>
+            <button
+              class="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs transition-colors"
+              :class="audience === 'friends' ? 'bg-primary-container text-primary-on font-semibold' : 'bg-surface-low text-surface-onVariant'"
+              @click="audience = 'friends'"
+            >
+              <span>👥 Только друзья</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Текстовый редактор -->
+      <div class="relative">
+        <textarea
+          v-model="content"
+          rows="4"
+          placeholder="Чем хотите поделиться? Напишите мысль, идею или вопрос..."
+          class="w-full p-4 rounded-2xl bg-surface-low border border-surface-high/60 text-sm text-surface-on placeholder:text-surface-onVariant/50 focus:outline-none focus:ring-2 focus:ring-primary resize-none transition-all"
+        />
+      </div>
+
+      <!-- Предпросмотр прикрепленных фото -->
+      <div v-if="mediaUrls.length > 0" class="grid grid-cols-3 gap-2">
+        <div
+          v-for="(url, idx) in mediaUrls"
+          :key="idx"
+          class="relative h-24 rounded-2xl overflow-hidden bg-surface-low border border-surface-high group"
+        >
+          <img :src="url" class="w-full h-full object-cover" />
+          <button
+            class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-rose-600 transition-colors"
+            @click="removeMedia(idx)"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Индикатор сжатия WebP -->
+      <div v-if="isCompressing" class="flex items-center gap-2 text-xs text-primary animate-pulse">
+        <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+        <span>Клиентская компрессия изображения в WebP...</span>
+      </div>
+
+      <!-- Настройки поста (тумблер "Отключить комментарии") -->
+      <div class="flex items-center justify-between p-3.5 rounded-2xl bg-surface-low border border-surface-high/40">
+        <div class="flex flex-col">
+          <span class="text-xs font-semibold text-surface-on">Отключить комментарии</span>
+          <span class="text-[11px] text-surface-onVariant/70">Другие пользователи не смогут комментировать эту запись</span>
+        </div>
+        <input
+          v-model="disableComments"
+          type="checkbox"
+          class="w-5 h-5 accent-primary rounded cursor-pointer"
+        />
+      </div>
+
+      <!-- Кнопка добавления фото и отправка -->
+      <div class="flex items-center justify-between pt-2 border-t border-surface-high/40">
+        <label class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-low hover:bg-surface-high text-xs font-medium text-surface-on cursor-pointer transition-colors m3-press-effect">
+          <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span>Добавить фото</span>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            class="hidden"
+            @change="handleFileUpload"
+          />
+        </label>
+
+        <M3Button
+          variant="filled"
+          size="md"
+          :disabled="!content.trim() && mediaUrls.length === 0"
+          :loading="isCompressing"
+          @click="submitPost"
+        >
+          Опубликовать
+        </M3Button>
+      </div>
+    </div>
+  </M3BottomSheet>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue';
+import type { PostAudience } from '@/types/database';
+import M3BottomSheet from '@/components/ui/M3BottomSheet.vue';
+import M3Avatar from '@/components/ui/M3Avatar.vue';
+import M3Button from '@/components/ui/M3Button.vue';
+import { useAuthStore } from '@/stores/auth';
+import { useFeedStore } from '@/stores/feed';
+import { useToastStore } from '@/stores/toast';
+import { compressImageToWebP } from '@/lib/imageCompressor';
+
+const props = defineProps<{
+  modelValue: boolean;
+}>();
+
+const emit = defineEmits<{
+  (e: 'update:modelValue', val: boolean): void;
+}>();
+
+const authStore = useAuthStore();
+const feedStore = useFeedStore();
+const toastStore = useToastStore();
+
+const content = ref('');
+const mediaUrls = ref<string[]>([]);
+const disableComments = ref(false);
+const audience = ref<PostAudience>('all');
+const isCompressing = ref(false);
+
+async function handleFileUpload(e: Event) {
+  const target = e.target as HTMLInputElement;
+  const files = target.files;
+  if (!files || files.length === 0) return;
+
+  isCompressing.value = true;
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      // Клиентская компрессия в WebP с оптимизацией
+      const { dataUrl } = await compressImageToWebP(file, { maxWidth: 1400, quality: 0.82 });
+      mediaUrls.value.push(dataUrl);
+    }
+    toastStore.show(`Загружено изображений: ${files.length} (сжато в WebP)`, 'info');
+  } catch (err) {
+    toastStore.show('Ошибка сжатия изображения', 'error');
+  } finally {
+    isCompressing.value = false;
+    target.value = '';
+  }
+}
+
+function removeMedia(idx: number) {
+  mediaUrls.value.splice(idx, 1);
+}
+
+function submitPost() {
+  if (!content.value.trim() && mediaUrls.value.length === 0) return;
+
+  feedStore.createPost(
+    content.value.trim(),
+    [...mediaUrls.value],
+    disableComments.value,
+    audience.value
+  );
+
+  // Сброс формы
+  content.value = '';
+  mediaUrls.value = [];
+  disableComments.value = false;
+  audience.value = 'all';
+
+  emit('update:modelValue', false);
+  toastStore.show('Запись успешно опубликована в ленте!', 'success');
+}
+</script>

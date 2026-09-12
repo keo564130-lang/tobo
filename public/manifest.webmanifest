@@ -1,0 +1,18 @@
+{
+  "name": "tobo",
+  "short_name": "tobo",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F9F9FB",
+  "theme_color": "#9EB7E5",
+  "description": "Социальная сеть и мессенджер нового поколения в стиле Material 3 Expressive",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["social", "communication"]
+}

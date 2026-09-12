@@ -1,0 +1,118 @@
+<template>
+  <div class="min-h-screen pb-28 pt-20 px-4 max-w-2xl mx-auto">
+    <!-- Верхний плавающий островок (Floating Top Bar Island) -->
+    <FloatingTopBar>
+      <template #leading>
+        <div class="flex items-center gap-2 cursor-pointer" @click="scrollToTop">
+          <span class="font-extrabold tracking-tight text-2xl text-primary font-mono select-none">tobo</span>
+          <span class="w-2 h-2 rounded-full bg-tertiary animate-pulse-subtle" />
+        </div>
+      </template>
+
+      <template #center>
+        <span class="text-xs font-semibold text-surface-onVariant/80 uppercase tracking-widest hidden sm:inline">
+          Рекомендации
+        </span>
+      </template>
+
+      <template #trailing>
+        <!-- Кнопка обновления ленты -->
+        <button
+          class="w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect"
+          title="Обновить ленту"
+          @click="handleRefresh"
+        >
+          <svg class="w-5 h-5" :class="{ 'animate-spin': isRefreshing }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
+
+        <!-- Expressive Кнопка создания поста (+) -->
+        <M3Button
+          variant="filled"
+          size="sm"
+          class="shadow-sm"
+          @click="showCreateModal = true"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+          </svg>
+          <span class="hidden sm:inline">Создать</span>
+        </M3Button>
+      </template>
+    </FloatingTopBar>
+
+    <!-- Список постов ленты -->
+    <div class="flex flex-col gap-4">
+      <!-- Баннер алгоритма Time Decay для наглядности -->
+      <div class="px-4 py-3 rounded-2xl bg-surface-lowest/70 border border-primary/20 backdrop-blur-sm flex items-center justify-between text-xs text-surface-onVariant">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-primary shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <span>Лента ранжируется по вовлеченности с затуханием во времени (Time Decay)</span>
+        </div>
+        <span class="font-mono text-[10px] text-primary font-bold">M3 Expressive</span>
+      </div>
+
+      <!-- Карточки постов -->
+      <PostCard
+        v-for="post in feedStore.posts"
+        :key="post.id"
+        :post="post"
+        @open-comments="openComments"
+      />
+    </div>
+
+    <!-- Модальное окно создания поста -->
+    <CreatePostModal v-model="showCreateModal" />
+
+    <!-- Модальная шторка комментариев -->
+    <CommentsSheet
+      v-model="showCommentsSheet"
+      :post="activeCommentPost"
+    />
+
+    <!-- Нижний плавающий островок навигации -->
+    <FloatingBottomNav />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue';
+import type { Post } from '@/types/database';
+import FloatingTopBar from '@/components/ui/FloatingTopBar.vue';
+import FloatingBottomNav from '@/components/ui/FloatingBottomNav.vue';
+import M3Button from '@/components/ui/M3Button.vue';
+import PostCard from '@/components/feed/PostCard.vue';
+import CreatePostModal from '@/components/feed/CreatePostModal.vue';
+import CommentsSheet from '@/components/feed/CommentsSheet.vue';
+import { useFeedStore } from '@/stores/feed';
+import { useToastStore } from '@/stores/toast';
+
+const feedStore = useFeedStore();
+const toastStore = useToastStore();
+
+const showCreateModal = ref(false);
+const showCommentsSheet = ref(false);
+const activeCommentPost = ref<Post | null>(null);
+const isRefreshing = ref(false);
+
+function openComments(post: Post) {
+  activeCommentPost.value = post;
+  showCommentsSheet.value = true;
+}
+
+function handleRefresh() {
+  isRefreshing.value = true;
+  feedStore.refreshFeed();
+  setTimeout(() => {
+    isRefreshing.value = false;
+    toastStore.show('Лента обновлена актуальными рекомендациями', 'info');
+  }, 400);
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
