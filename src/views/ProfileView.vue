@@ -4,7 +4,7 @@
     <FloatingTopBar>
       <template #leading>
         <div class="flex items-center gap-2">
-          <span class="font-extrabold tracking-tight text-2xl leading-none text-primary font-mono select-none">tobo</span>
+          <span class="font-sans font-black tracking-tight text-2xl leading-none text-primary select-none -translate-y-[1px]">tobo</span>
           <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary-container text-primary-onContainer leading-normal">
             Профиль
           </span>
@@ -19,7 +19,7 @@
           @click="toggleDemoUser"
         >
           <span class="material-symbols-rounded text-sm text-primary shrink-0">swap_horiz</span>
-          <span class="text-primary font-mono font-bold truncate">{{ authStore.user.first_name }}</span>
+          <span class="text-primary font-sans font-semibold text-xs truncate">{{ authStore.user.first_name }}</span>
         </button>
 
         <!-- Кнопка перехода в Настройки -->
@@ -90,7 +90,7 @@
         to="/settings"
         class="p-4 rounded-3xl bg-surface-lowest border border-surface-high/60 shadow-xs hover:shadow-elevation-1 transition-all flex flex-col justify-between h-28 m3-press-effect"
       >
-        <div class="w-8 h-8 rounded-2xl bg-white text-tobo-sky-text shadow-xs flex items-center justify-center">
+        <div class="w-8 h-8 rounded-2xl bg-surface-high/70 border border-surface-high/50 text-tobo-sky-text shadow-xs flex items-center justify-center">
           <span class="material-symbols-rounded text-lg">tune</span>
         </div>
         <div>
@@ -104,7 +104,7 @@
         class="p-4 rounded-3xl bg-surface-lowest border border-surface-high/60 shadow-xs hover:shadow-elevation-1 transition-all flex flex-col justify-between h-28 cursor-pointer m3-press-effect"
         @click="goToSavedChat"
       >
-        <div class="w-8 h-8 rounded-2xl bg-white text-tobo-lavender-text shadow-xs flex items-center justify-center">
+        <div class="w-8 h-8 rounded-2xl bg-surface-high/70 border border-surface-high/50 text-tobo-lavender-text shadow-xs flex items-center justify-center">
           <span class="material-symbols-rounded text-lg">bookmark</span>
         </div>
         <div>
@@ -118,7 +118,7 @@
         class="p-4 rounded-3xl bg-surface-lowest border border-surface-high/60 shadow-xs hover:shadow-elevation-1 transition-all flex flex-col justify-between h-28 cursor-pointer m3-press-effect"
         @click="toastStore.show('Галерея медиафайлов синхронизирована', 'info')"
       >
-        <div class="w-8 h-8 rounded-2xl bg-white text-tobo-mint-text shadow-xs flex items-center justify-center">
+        <div class="w-8 h-8 rounded-2xl bg-surface-high/70 border border-surface-high/50 text-tobo-mint-text shadow-xs flex items-center justify-center">
           <span class="material-symbols-rounded text-lg">photo_library</span>
         </div>
         <div>
@@ -132,7 +132,7 @@
         class="p-4 rounded-3xl bg-surface-lowest border border-surface-high/60 shadow-xs hover:shadow-elevation-1 transition-all flex flex-col justify-between h-28 cursor-pointer m3-press-effect"
         @click="toastStore.show('Контакты: Миша Смирнов, Анна Кузнецова, tobo team', 'info')"
       >
-        <div class="w-8 h-8 rounded-2xl bg-white text-tobo-peach-text shadow-xs flex items-center justify-center">
+        <div class="w-8 h-8 rounded-2xl bg-surface-high/70 border border-surface-high/50 text-tobo-peach-text shadow-xs flex items-center justify-center">
           <span class="material-symbols-rounded text-lg">group</span>
         </div>
         <div>

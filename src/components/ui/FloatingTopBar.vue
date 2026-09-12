@@ -5,7 +5,7 @@
       <div class="flex items-center gap-3">
         <slot name="leading">
           <div class="flex items-center gap-2">
-            <span class="font-extrabold tracking-tight text-xl text-primary font-mono select-none">tobo</span>
+            <span class="font-sans font-black tracking-tight text-xl leading-none text-primary select-none -translate-y-[1px]">tobo</span>
             <span class="w-1.5 h-1.5 rounded-full bg-tertiary" />
           </div>
         </slot>

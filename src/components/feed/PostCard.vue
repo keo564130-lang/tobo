@@ -102,10 +102,8 @@
           class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full transition-all m3-press-effect hover:bg-primary-container/40 hover:text-primary-onContainer cursor-pointer"
           @click="$emit('open-comments', post)"
         >
-          <span class="material-symbols-rounded text-lg">
-            chat_bubble
-          </span>
-          <span class="font-mono">{{ post.comments_count }}</span>
+          <span class="material-symbols-rounded text-lg">chat</span>
+          <span class="font-mono text-xs">{{ post.comments_count }}</span>
         </button>
         <span v-else class="text-[11px] text-surface-onVariant/50 italic px-2">
           комментарии закрыты
@@ -117,33 +115,31 @@
           :class="post.is_reposted ? 'text-emerald-600 font-bold dark:text-emerald-400' : ''"
           @click="handleRepost"
         >
-          <span class="material-symbols-rounded text-lg">
-            repeat
-          </span>
-          <span class="font-mono">{{ post.reposts_count }}</span>
+          <span class="material-symbols-rounded text-lg">sync</span>
+          <span class="font-mono text-xs">{{ post.reposts_count }}</span>
         </button>
       </div>
 
-      <div class="flex items-center gap-1">
-        <!-- Кнопка В Избранное (Автоматически отправляет в чат "Избранное" во 2-й вкладке) -->
+      <!-- Правая часть: Избранное и Просмотры -->
+      <div class="flex items-center gap-1.5 ml-auto shrink-0">
+        <!-- Избранное пастельно-желтым -->
         <button
-          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full transition-all m3-press-effect hover:bg-secondary-container/50 hover:text-secondary-onContainer cursor-pointer"
-          :class="post.is_bookmarked ? 'text-purple-600 dark:text-purple-400 font-bold' : ''"
-          title="Сохранить в Избранное (в чат во вкладке Сообщения)"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full transition-all m3-press-effect hover:bg-amber-100/40 dark:hover:bg-amber-950/30 cursor-pointer"
+          :class="post.is_bookmarked ? 'text-amber-500 dark:text-amber-300 font-bold' : 'text-surface-onVariant/80'"
+          title="Сохранить в Избранное"
           @click="handleBookmark"
         >
           <span
             class="material-symbols-rounded text-lg transition-transform spring-transition"
-            :class="post.is_bookmarked ? 'filled scale-115 text-purple-600 dark:text-purple-400' : ''"
+            :class="post.is_bookmarked ? 'filled scale-110 text-amber-500 dark:text-amber-300' : ''"
           >
             bookmark
           </span>
-          <span class="hidden sm:inline">{{ post.is_bookmarked ? 'В избранном' : 'В избранное' }}</span>
+          <span class="hidden sm:inline text-xs">{{ post.is_bookmarked ? 'В избранном' : 'В избранное' }}</span>
         </button>
-
-        <!-- Просмотры -->
-        <div class="flex items-center gap-1 text-surface-onVariant/50 font-mono shrink-0 pr-1 text-xs">
-          <span class="material-symbols-rounded text-base">visibility</span>
+        <!-- Просмотры без переноса -->
+        <div class="flex items-center gap-1 text-surface-onVariant/50 font-mono text-xs pl-1">
+          <span class="material-symbols-rounded text-sm">visibility</span>
           <span>{{ post.views_count }}</span>
         </div>
       </div>

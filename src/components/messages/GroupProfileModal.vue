@@ -35,7 +35,7 @@
           </span>
           <button
             class="text-xs text-primary font-semibold hover:underline flex items-center gap-1 cursor-pointer"
-            @click="handleAddMember"
+            @click="showAddMemberModal = true"
           >
             <span class="material-symbols-rounded text-base">person_add</span>
             <span>Добавить</span>
@@ -94,14 +94,51 @@
       </div>
     </div>
   </M3BottomSheet>
+
+  <!-- Модальное окно выбора контакта -->
+  <div
+    v-if="showAddMemberModal"
+    class="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+    @click.self="showAddMemberModal = false"
+  >
+    <div class="w-full max-w-sm rounded-3xl bg-surface-lowest border border-surface-high p-4 shadow-elevation-3">
+      <div class="flex items-center justify-between mb-3">
+        <h4 class="text-sm font-bold text-surface-on">Добавить в группу</h4>
+        <button
+          class="w-7 h-7 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high cursor-pointer"
+          @click="showAddMemberModal = false"
+        >
+          <span class="material-symbols-rounded text-base">close</span>
+        </button>
+      </div>
+      <div v-if="availableUsersToAdd.length === 0" class="py-4 text-center text-xs text-surface-onVariant">
+        Все доступные контакты уже добавлены
+      </div>
+      <div v-else class="flex flex-col gap-1.5 max-h-60 overflow-y-auto">
+        <button
+          v-for="user in availableUsersToAdd"
+          :key="user.id"
+          class="flex items-center gap-3 p-2.5 rounded-2xl bg-surface-low hover:bg-surface-high transition-colors text-left cursor-pointer"
+          @click="addMemberToGroup(user)"
+        >
+          <M3Avatar :src="user.avatar_url" :name="user.first_name" size="sm" />
+          <div class="flex flex-col min-w-0 flex-1">
+            <span class="text-xs font-bold text-surface-on truncate">{{ user.first_name }} {{ user.last_name || '' }}</span>
+            <span class="text-[10px] text-surface-onVariant/60 font-mono">@{{ user.username }}</span>
+          </div>
+          <span class="material-symbols-rounded text-primary text-lg">add_circle</span>
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import type { Chat, ChatMember } from '@/types/database';
+import type { Chat, ChatMember, Profile } from '@/types/database';
 import M3BottomSheet from '@/components/ui/M3BottomSheet.vue';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
-import { currentUserMock, mishaProfileMock, annaProfileMock } from '@/lib/mockData';
+import { currentUserMock, mishaProfileMock, annaProfileMock, toboOfficialProfileMock } from '@/lib/mockData';
 import { useToastStore } from '@/stores/toast';
 
 const props = defineProps<{
@@ -114,6 +151,25 @@ defineEmits<{
 }>();
 
 const toastStore = useToastStore();
+
+const showAddMemberModal = ref(false);
+const allMockUsers = [currentUserMock, mishaProfileMock, annaProfileMock, toboOfficialProfileMock];
+const availableUsersToAdd = computed(() => {
+  const existingIds = new Set(currentMembers.value.map(m => m.user_id));
+  return allMockUsers.filter(u => !existingIds.has(u.id));
+});
+
+function addMemberToGroup(user: Profile) {
+  currentMembers.value.push({
+    chat_id: props.chat?.id || 'group-custom',
+    user_id: user.id,
+    role: 'member',
+    joined_at: new Date().toISOString(),
+    profile: user
+  });
+  showAddMemberModal.value = false;
+  toastStore.show(`${user.first_name} добавлен(а) в группу`, 'success');
+}
 
 const currentMembers = ref<ChatMember[]>([]);
 
@@ -172,9 +228,5 @@ const onlineCount = computed(() => {
 function removeMember(userId: string) {
   currentMembers.value = currentMembers.value.filter(m => m.user_id !== userId);
   toastStore.show('Участник исключён из группы', 'info');
-}
-
-function handleAddMember() {
-  toastStore.show('Выберите пользователя для добавления в группу', 'info');
 }
 </script>

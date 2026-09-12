@@ -4,7 +4,7 @@
     <FloatingTopBar>
       <template #leading>
         <div class="flex items-center gap-2 cursor-pointer" @click="scrollToTop">
-          <span class="font-extrabold tracking-tight text-2xl leading-none text-primary font-mono select-none">tobo</span>
+          <span class="font-sans font-black tracking-tight text-2xl leading-none text-primary select-none -translate-y-[1px]">tobo</span>
           <span class="w-2 h-2 rounded-full bg-tertiary animate-pulse-subtle" />
         </div>
       </template>

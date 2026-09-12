@@ -38,12 +38,15 @@
               <button
                 v-for="p in palettes"
                 :key="p.key"
-                class="p-3 rounded-2xl border flex flex-col items-center gap-1.5 transition-all m3-press-effect cursor-pointer"
+                class="p-3 rounded-2xl border-2 flex flex-col items-center gap-1.5 transition-all m3-press-effect cursor-pointer"
                 :class="[
                   themeStore.palette === p.key
-                    ? 'border-primary ring-2 ring-primary/30 bg-surface-lowest shadow-sm'
-                    : 'border-surface-high bg-surface-low hover:bg-surface-high/40'
+                    ? 'shadow-sm bg-surface-lowest'
+                    : 'border-surface-high/60 bg-surface-low hover:bg-surface-high/40'
                 ]"
+                :style="{
+                  borderColor: themeStore.palette === p.key ? p.color : undefined
+                }"
                 @click="themeStore.setPalette(p.key)"
               >
                 <div class="w-7 h-7 rounded-full shadow-xs flex items-center justify-center" :style="{ backgroundColor: p.color }">
@@ -185,8 +188,8 @@
                   </div>
                 </div>
                 <span
-                  class="font-mono text-[10px] px-2 py-0.5 rounded-full"
-                  :class="session.is_current ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold' : 'text-surface-onVariant/60'"
+                  class="text-[11px] font-sans font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0 self-center"
+                  :class="session.is_current ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 font-semibold' : 'text-surface-onVariant/60'"
                 >
                   {{ session.is_current ? 'Текущий сеанс' : session.last_active }}
                 </span>

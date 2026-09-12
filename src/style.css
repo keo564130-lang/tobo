@@ -75,13 +75,18 @@ html[data-theme-palette="peach"] {
   --color-outline-variant: #2E323A;
 }
 
-/* Выразительная акцентная обводка карточек под цвет выбранной палитры */
+/* Выразительная цветная обводка карточек под тон выбранной палитры */
 .dark .border-surface-high\/60,
-.dark .border-surface-high\/50 {
-  border-color: rgba(var(--color-primary-rgb, 158, 183, 229), 0.35);
+.dark .border-surface-high\/50,
+.dark .border-surface-high\/40,
+.dark .border-surface-high\/30,
+.dark .border-outline-variant\/60,
+.dark article.rounded-3xl {
+  border-color: rgba(var(--color-primary-rgb, 158, 183, 229), 0.32);
 }
-.dark .border-surface-high\/60:hover {
-  border-color: rgba(var(--color-primary-rgb, 158, 183, 229), 0.55);
+.dark .border-surface-high\/60:hover,
+.dark article.rounded-3xl:hover {
+  border-color: rgba(var(--color-primary-rgb, 158, 183, 229), 0.6);
 }
 
 html.dark[data-theme-palette="sky"] {

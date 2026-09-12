@@ -4,7 +4,7 @@
     <FloatingTopBar>
       <template #leading>
         <div class="flex items-center gap-2">
-          <span class="font-extrabold tracking-tight text-2xl leading-none text-primary font-mono select-none">tobo</span>
+          <span class="font-sans font-black tracking-tight text-2xl leading-none text-primary select-none -translate-y-[1px]">tobo</span>
           <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary-container text-primary-onContainer leading-normal">
             Чаты
           </span>
@@ -29,8 +29,10 @@
       <template #trailing>
         <!-- Кнопка поиска на мобильных -->
         <button
-          class="sm:hidden w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect cursor-pointer"
-          @click="showMobileSearch = !showMobileSearch"
+          type="button"
+          class="sm:hidden w-9 h-9 rounded-full flex items-center justify-center transition-colors m3-press-effect cursor-pointer focus:outline-none"
+          :class="showMobileSearch ? 'bg-primary-container text-primary-onContainer' : 'text-surface-onVariant hover:bg-surface-high/60'"
+          @click="toggleMobileSearch($event)"
         >
           <span class="material-symbols-rounded text-xl">search</span>
         </button>
@@ -120,31 +122,15 @@
             :is-online="chat.type === 'direct'"
             :show-online="chat.type === 'direct'"
           />
-          <!-- Иконка типа -->
-          <div
-            v-if="chat.type === 'saved'"
-            class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-secondary-container text-secondary-onContainer flex items-center justify-center ring-2 ring-surface-lowest shadow-xs overflow-hidden"
-          >
-            <span class="material-symbols-rounded text-[9px] leading-none select-none">bookmark</span>
-          </div>
-          <div
-            v-else-if="chat.type === 'channel'"
-            class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary-container text-primary-onContainer flex items-center justify-center ring-2 ring-surface-lowest shadow-xs overflow-hidden"
-          >
-            <span class="material-symbols-rounded text-[9px] leading-none select-none">campaign</span>
-          </div>
-          <div
-            v-else-if="chat.type === 'group'"
-            class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-tertiary-container text-tertiary-onContainer flex items-center justify-center ring-2 ring-surface-lowest shadow-xs overflow-hidden"
-          >
-            <span class="material-symbols-rounded text-[9px] leading-none select-none">group</span>
-          </div>
         </div>
 
         <!-- Информация о чате -->
         <div class="flex-1 min-w-0">
           <div class="flex items-center justify-between mb-1">
             <div class="flex items-center gap-1.5 min-w-0">
+              <span v-if="chat.type === 'channel'" class="material-symbols-rounded text-primary text-sm shrink-0" title="Канал">campaign</span>
+              <span v-else-if="chat.type === 'group'" class="material-symbols-rounded text-secondary text-sm shrink-0" title="Группа">group</span>
+              <span v-else-if="chat.type === 'saved'" class="material-symbols-rounded text-secondary text-sm shrink-0" title="Избранное">bookmark</span>
               <span class="font-bold text-surface-on text-sm truncate">
                 {{ chat.title }}
               </span>
@@ -256,6 +242,11 @@ const filteredChats = computed(() => {
     return true;
   });
 });
+
+function toggleMobileSearch(event?: MouseEvent) {
+  showMobileSearch.value = !showMobileSearch.value;
+  (event?.currentTarget as HTMLElement)?.blur();
+}
 
 function openChat(chatId: string) {
   chatStore.selectChat(chatId);
