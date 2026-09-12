@@ -22,6 +22,16 @@
           <span class="text-primary font-sans font-semibold text-xs truncate">{{ authStore.user.first_name }}</span>
         </button>
 
+        <!-- Кнопка быстрой регистрации и онбординга -->
+        <button
+          type="button"
+          class="w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect shrink-0 cursor-pointer"
+          title="Быстрая регистрация и онбординг"
+          @click="authStore.openOnboarding('register')"
+        >
+          <span class="material-symbols-rounded text-2xl">person_add</span>
+        </button>
+
         <!-- Кнопка перехода в Настройки -->
         <router-link
           to="/settings"
@@ -57,15 +67,27 @@
             />
           </div>
 
-          <!-- Кнопка "Редактировать профиль" -->
-          <M3Button
-            variant="tonal"
-            size="sm"
-            @click="showEditModal = true"
-          >
-            <span class="material-symbols-rounded text-base">edit</span>
-            <span>Редактировать</span>
-          </M3Button>
+          <!-- Кнопки управления профилем -->
+          <div class="flex items-center gap-1.5">
+            <M3Button
+              variant="text"
+              size="sm"
+              title="Мастер настройки профиля"
+              @click="authStore.openOnboarding('profile')"
+            >
+              <span class="material-symbols-rounded text-base">auto_awesome</span>
+              <span class="hidden sm:inline">Онбординг</span>
+            </M3Button>
+
+            <M3Button
+              variant="tonal"
+              size="sm"
+              @click="showEditModal = true"
+            >
+              <span class="material-symbols-rounded text-base">edit</span>
+              <span>Редактировать</span>
+            </M3Button>
+          </div>
         </div>
 
         <!-- Имя, юзернейм и био -->

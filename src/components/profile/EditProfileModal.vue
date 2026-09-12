@@ -137,6 +137,13 @@
         </M3Button>
       </div>
     </div>
+
+    <!-- Круглый видоискатель-кроппер миниатюры аватара -->
+    <AvatarCropperModal
+      v-model="showCropperModal"
+      :image-src="cropperImageSrc"
+      @crop-complete="handleCropComplete"
+    />
   </M3BottomSheet>
 </template>
 
@@ -144,6 +151,7 @@
 import { ref, watch } from 'vue';
 import M3BottomSheet from '@/components/ui/M3BottomSheet.vue';
 import M3Button from '@/components/ui/M3Button.vue';
+import AvatarCropperModal from '@/components/profile/AvatarCropperModal.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useToastStore } from '@/stores/toast';
 import { 
@@ -153,7 +161,8 @@ import {
   toboOfficialAvatarSvg,
   alexCoverSvg,
   mishaCoverSvg,
-  annaCoverSvg
+  annaCoverSvg,
+  peachCoverSvg
 } from '@/lib/mockData';
 
 const presetAvatars = [
@@ -166,7 +175,8 @@ const presetAvatars = [
 const presetCovers = [
   { label: 'Лазурная волна', url: alexCoverSvg },
   { label: 'Лаванда и персик', url: mishaCoverSvg },
-  { label: 'Мятная гармония', url: annaCoverSvg }
+  { label: 'Мятная гармония', url: annaCoverSvg },
+  { label: 'Персиковый рассвет', url: peachCoverSvg }
 ];
 
 const props = defineProps<{
@@ -187,18 +197,28 @@ const bio = ref(authStore.user.bio || '');
 const avatarUrl = ref(authStore.user.avatar_url || '');
 const coverUrl = ref(authStore.user.cover_url || '');
 
+const showCropperModal = ref(false);
+const cropperImageSrc = ref('');
+
 function handleAvatarUpload(e: Event) {
   const target = e.target as HTMLInputElement;
   if (target.files && target.files[0]) {
+    const file = target.files[0];
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        avatarUrl.value = reader.result;
-        toastStore.show('Аватар загружен', 'info');
+        cropperImageSrc.value = reader.result;
+        showCropperModal.value = true;
       }
     };
-    reader.readAsDataURL(target.files[0]);
+    reader.readAsDataURL(file);
+    target.value = '';
   }
+}
+
+function handleCropComplete(croppedBase64: string) {
+  avatarUrl.value = croppedBase64;
+  toastStore.show('Миниатюра аватара обновлена', 'success');
 }
 
 function handleCoverUpload(e: Event) {

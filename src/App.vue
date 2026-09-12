@@ -8,15 +8,24 @@
 
     <!-- Глобальные уведомления -->
     <ToastContainer />
+
+    <!-- Мастер онбординга и настройки профиля -->
+    <OnboardingModal
+      v-model="authStore.showOnboarding"
+      :initial-step="authStore.onboardingStep"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import ToastContainer from '@/components/ui/ToastContainer.vue';
+import OnboardingModal from '@/components/auth/OnboardingModal.vue';
 import { useThemeStore } from '@/stores/theme';
+import { useAuthStore } from '@/stores/auth';
 
 const themeStore = useThemeStore();
+const authStore = useAuthStore();
 
 onMounted(() => {
   themeStore.applyTheme();
