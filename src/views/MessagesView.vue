@@ -123,21 +123,21 @@
           <!-- Иконка типа -->
           <div
             v-if="chat.type === 'saved'"
-            class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-secondary-container text-secondary-onContainer flex items-center justify-center ring-2 ring-surface-lowest shadow-xs"
+            class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-secondary-container text-secondary-onContainer flex items-center justify-center ring-2 ring-surface-lowest shadow-xs overflow-hidden"
           >
-            <span class="material-symbols-rounded text-[10px]">bookmark</span>
+            <span class="material-symbols-rounded text-[9px] leading-none select-none">bookmark</span>
           </div>
           <div
             v-else-if="chat.type === 'channel'"
-            class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary-container text-primary-onContainer flex items-center justify-center ring-2 ring-surface-lowest shadow-xs"
+            class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary-container text-primary-onContainer flex items-center justify-center ring-2 ring-surface-lowest shadow-xs overflow-hidden"
           >
-            <span class="material-symbols-rounded text-[10px]">campaign</span>
+            <span class="material-symbols-rounded text-[9px] leading-none select-none">campaign</span>
           </div>
           <div
             v-else-if="chat.type === 'group'"
-            class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-tertiary-container text-tertiary-onContainer flex items-center justify-center ring-2 ring-surface-lowest shadow-xs"
+            class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-tertiary-container text-tertiary-onContainer flex items-center justify-center ring-2 ring-surface-lowest shadow-xs overflow-hidden"
           >
-            <span class="material-symbols-rounded text-[10px]">group</span>
+            <span class="material-symbols-rounded text-[9px] leading-none select-none">group</span>
           </div>
         </div>
 

@@ -90,7 +90,7 @@
         to="/settings"
         class="p-4 rounded-3xl bg-surface-lowest border border-surface-high/60 shadow-xs hover:shadow-elevation-1 transition-all flex flex-col justify-between h-28 m3-press-effect"
       >
-        <div class="w-8 h-8 rounded-2xl bg-primary-container text-primary-onContainer flex items-center justify-center">
+        <div class="w-8 h-8 rounded-2xl bg-white text-tobo-sky-text shadow-xs flex items-center justify-center">
           <span class="material-symbols-rounded text-lg">tune</span>
         </div>
         <div>
@@ -104,7 +104,7 @@
         class="p-4 rounded-3xl bg-surface-lowest border border-surface-high/60 shadow-xs hover:shadow-elevation-1 transition-all flex flex-col justify-between h-28 cursor-pointer m3-press-effect"
         @click="goToSavedChat"
       >
-        <div class="w-8 h-8 rounded-2xl bg-secondary-container text-secondary-onContainer flex items-center justify-center">
+        <div class="w-8 h-8 rounded-2xl bg-white text-tobo-lavender-text shadow-xs flex items-center justify-center">
           <span class="material-symbols-rounded text-lg">bookmark</span>
         </div>
         <div>
@@ -118,7 +118,7 @@
         class="p-4 rounded-3xl bg-surface-lowest border border-surface-high/60 shadow-xs hover:shadow-elevation-1 transition-all flex flex-col justify-between h-28 cursor-pointer m3-press-effect"
         @click="toastStore.show('Галерея медиафайлов синхронизирована', 'info')"
       >
-        <div class="w-8 h-8 rounded-2xl bg-tertiary-container text-tertiary-onContainer flex items-center justify-center">
+        <div class="w-8 h-8 rounded-2xl bg-white text-tobo-mint-text shadow-xs flex items-center justify-center">
           <span class="material-symbols-rounded text-lg">photo_library</span>
         </div>
         <div>
@@ -132,7 +132,7 @@
         class="p-4 rounded-3xl bg-surface-lowest border border-surface-high/60 shadow-xs hover:shadow-elevation-1 transition-all flex flex-col justify-between h-28 cursor-pointer m3-press-effect"
         @click="toastStore.show('Контакты: Миша Смирнов, Анна Кузнецова, tobo team', 'info')"
       >
-        <div class="w-8 h-8 rounded-2xl bg-tobo-peach-container text-tobo-peach-text flex items-center justify-center">
+        <div class="w-8 h-8 rounded-2xl bg-white text-tobo-peach-text shadow-xs flex items-center justify-center">
           <span class="material-symbols-rounded text-lg">group</span>
         </div>
         <div>

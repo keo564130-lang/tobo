@@ -75,9 +75,13 @@ html[data-theme-palette="peach"] {
   --color-outline-variant: #2E323A;
 }
 
+/* Выразительная акцентная обводка карточек под цвет выбранной палитры */
 .dark .border-surface-high\/60,
 .dark .border-surface-high\/50 {
-  border-color: rgba(var(--color-primary-rgb, 158, 183, 229), 0.15);
+  border-color: rgba(var(--color-primary-rgb, 158, 183, 229), 0.35);
+}
+.dark .border-surface-high\/60:hover {
+  border-color: rgba(var(--color-primary-rgb, 158, 183, 229), 0.55);
 }
 
 html.dark[data-theme-palette="sky"] {

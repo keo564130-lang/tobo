@@ -85,6 +85,7 @@ module.exports = {
         'pill': '9999px'
       },
       boxShadow: {
+        'xs': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
         'elevation-1': '0 1px 3px 1px rgba(0, 0, 0, 0.07), 0 1px 2px 0 rgba(0, 0, 0, 0.04)',
         'elevation-2': '0 2px 6px 2px rgba(0, 0, 0, 0.07), 0 1px 2px 0 rgba(0, 0, 0, 0.03)',
         'elevation-3': '0 4px 12px 3px rgba(0, 0, 0, 0.08), 0 1px 3px 0 rgba(0, 0, 0, 0.04)',
