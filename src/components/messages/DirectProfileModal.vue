@@ -103,9 +103,13 @@
           <label
             v-for="reason in reportReasons"
             :key="reason"
+            :for="'report_reason_' + reason"
             class="flex items-center gap-2 p-2 rounded-xl hover:bg-surface-high cursor-pointer text-xs text-surface-on"
           >
             <input
+              :id="'report_reason_' + reason"
+              name="report_reason"
+              aria-label="Причина жалобы"
               v-model="selectedReason"
               type="radio"
               :value="reason"

@@ -15,9 +15,12 @@
         <!-- Быстрый поиск в шапке на десктопе -->
         <div class="relative w-full max-w-xs hidden sm:block">
           <input
+            id="desktop_chat_search"
+            name="search"
             v-model="searchQuery"
             type="text"
             placeholder="Поиск диалогов..."
+            aria-label="Поиск диалогов"
             class="w-full pl-8 pr-3 py-1.5 rounded-full bg-surface-low border border-surface-high/60 text-xs text-surface-on focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <span class="material-symbols-rounded text-sm absolute left-2.5 top-2 text-surface-onVariant/60">
@@ -81,9 +84,12 @@
     <!-- Поле поиска на мобильных при раскрытии -->
     <div v-if="showMobileSearch" class="mb-3 sm:hidden">
       <input
+        id="mobile_chat_search"
+        name="search"
         v-model="searchQuery"
         type="text"
         placeholder="Поиск сообщений и контактов..."
+        aria-label="Поиск сообщений и контактов"
         class="w-full px-4 py-2.5 rounded-2xl bg-surface-lowest border border-surface-high text-sm text-surface-on focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
       />
     </div>
@@ -156,8 +162,8 @@
                 <span class="material-symbols-rounded text-xs">mic</span>
                 <span>Голосовое сообщение ({{ chat.last_message.voice_duration || 5 }} с)</span>
               </span>
-              <span v-else-if="chat.last_message?.forwarded_post_id" class="text-secondary font-medium flex items-center gap-1">
-                <span class="material-symbols-rounded text-xs">bookmark</span>
+              <span v-else-if="chat.last_message?.forwarded_post_id" class="text-secondary font-medium flex items-center gap-1.5">
+                <span class="material-symbols-rounded text-[11px] text-surface-onVariant/70">feed</span>
                 <span>Сохранённый пост из Ленты</span>
               </span>
               <span v-else>

@@ -41,6 +41,9 @@
       <!-- Текстовый редактор -->
       <div class="relative">
         <textarea
+          id="post_content"
+          name="content"
+          aria-label="Текст публикации"
           v-model="content"
           rows="4"
           placeholder="Чем хотите поделиться? Напишите мысль, идею или вопрос..."
@@ -74,10 +77,13 @@
       <!-- Настройки поста (тумблер "Отключить комментарии") -->
       <div class="flex items-center justify-between p-3.5 rounded-2xl bg-surface-low border border-surface-high/40">
         <div class="flex flex-col">
-          <span class="text-xs font-semibold text-surface-on">Отключить комментарии</span>
+          <label for="disable_comments" class="text-xs font-semibold text-surface-on cursor-pointer">Отключить комментарии</label>
           <span class="text-[11px] text-surface-onVariant/70">Другие пользователи не смогут комментировать эту запись</span>
         </div>
         <input
+          id="disable_comments"
+          name="disable_comments"
+          aria-label="Отключить комментарии"
           v-model="disableComments"
           type="checkbox"
           class="w-5 h-5 accent-primary rounded cursor-pointer"
@@ -86,10 +92,13 @@
 
       <!-- Кнопка добавления фото и отправка -->
       <div class="flex items-center justify-between pt-2 border-t border-surface-high/40">
-        <label class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-low hover:bg-surface-high text-xs font-medium text-surface-on cursor-pointer transition-colors m3-press-effect">
+        <label for="post_file_upload" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-low hover:bg-surface-high text-xs font-medium text-surface-on cursor-pointer transition-colors m3-press-effect">
           <span class="material-symbols-rounded text-lg text-primary">add_photo_alternate</span>
           <span>Добавить фото</span>
           <input
+            id="post_file_upload"
+            name="media_files"
+            aria-label="Загрузить фотографии"
             type="file"
             accept="image/*"
             multiple

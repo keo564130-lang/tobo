@@ -8,16 +8,22 @@
       <!-- Имя и Фамилия -->
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs font-semibold text-surface-on mb-1">Имя</label>
+          <label for="edit_first_name" class="block text-xs font-semibold text-surface-on mb-1">Имя</label>
           <input
+            id="edit_first_name"
+            name="first_name"
+            aria-label="Имя"
             v-model="firstName"
             type="text"
             class="w-full px-3.5 py-2 rounded-2xl bg-surface-low border border-surface-high/60 text-sm text-surface-on focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
         <div>
-          <label class="block text-xs font-semibold text-surface-on mb-1">Фамилия</label>
+          <label for="edit_last_name" class="block text-xs font-semibold text-surface-on mb-1">Фамилия</label>
           <input
+            id="edit_last_name"
+            name="last_name"
+            aria-label="Фамилия"
             v-model="lastName"
             type="text"
             class="w-full px-3.5 py-2 rounded-2xl bg-surface-low border border-surface-high/60 text-sm text-surface-on focus:outline-none focus:ring-2 focus:ring-primary"
@@ -27,10 +33,13 @@
 
       <!-- Юзернейм -->
       <div>
-        <label class="block text-xs font-semibold text-surface-on mb-1">Юзернейм (@username)</label>
+        <label for="edit_username" class="block text-xs font-semibold text-surface-on mb-1">Юзернейм (@username)</label>
         <div class="relative">
           <span class="absolute left-3.5 top-2 text-surface-onVariant/60 text-sm">@</span>
           <input
+            id="edit_username"
+            name="username"
+            aria-label="Юзернейм"
             v-model="username"
             type="text"
             class="w-full pl-8 pr-3.5 py-2 rounded-2xl bg-surface-low border border-surface-high/60 text-sm text-surface-on focus:outline-none focus:ring-2 focus:ring-primary"
@@ -40,8 +49,11 @@
 
       <!-- Биография -->
       <div>
-        <label class="block text-xs font-semibold text-surface-on mb-1">О себе (Bio)</label>
+        <label for="edit_bio" class="block text-xs font-semibold text-surface-on mb-1">О себе (Bio)</label>
         <textarea
+          id="edit_bio"
+          name="bio"
+          aria-label="О себе"
           v-model="bio"
           rows="3"
           class="w-full p-3 rounded-2xl bg-surface-low border border-surface-high/60 text-sm text-surface-on focus:outline-none focus:ring-2 focus:ring-primary resize-none"
@@ -59,10 +71,10 @@
           />
           <div class="flex-1 flex flex-col gap-2 min-w-0">
             <!-- Кнопка загрузки файла -->
-            <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-low border border-surface-high/60 text-xs font-medium text-surface-on hover:bg-surface-high cursor-pointer transition-colors m3-press-effect w-fit">
+            <label for="avatar_file_input" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-low border border-surface-high/60 text-xs font-medium text-surface-on hover:bg-surface-high cursor-pointer transition-colors m3-press-effect w-fit">
               <span class="material-symbols-rounded text-base text-primary">upload</span>
               <span>Загрузить фото</span>
-              <input type="file" accept="image/*" class="hidden" @change="handleAvatarUpload" />
+              <input id="avatar_file_input" name="avatar_file" aria-label="Загрузить аватар" type="file" accept="image/*" class="hidden" @change="handleAvatarUpload" />
             </label>
             <!-- Горизонтальные пресеты -->
             <div class="flex items-center gap-2 overflow-x-auto py-1">
@@ -92,10 +104,10 @@
               alt="Обложка"
               class="w-full h-full object-cover"
             />
-            <label class="absolute right-2 bottom-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-xs text-white text-[11px] font-medium hover:bg-black/70 cursor-pointer transition-colors m3-press-effect">
+            <label for="cover_file_input" class="absolute right-2 bottom-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-xs text-white text-[11px] font-medium hover:bg-black/70 cursor-pointer transition-colors m3-press-effect">
               <span class="material-symbols-rounded text-sm">photo_camera</span>
               <span>Загрузить</span>
-              <input type="file" accept="image/*" class="hidden" @change="handleCoverUpload" />
+              <input id="cover_file_input" name="cover_file" aria-label="Загрузить обложку" type="file" accept="image/*" class="hidden" @change="handleCoverUpload" />
             </label>
           </div>
           <!-- Горизонтальные пресеты обложек -->

@@ -140,12 +140,20 @@
             <span class="text-sm font-semibold text-surface-on">Смена пароля</span>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <input
+                id="current_password"
+                name="current_password"
+                autocomplete="current-password"
+                aria-label="Текущий пароль"
                 v-model="oldPassword"
                 type="password"
                 placeholder="Текущий пароль"
                 class="px-3.5 py-2 rounded-xl bg-surface-low border border-surface-high text-xs text-surface-on focus:outline-none focus:ring-1 focus:ring-primary"
               />
               <input
+                id="new_password"
+                name="new_password"
+                autocomplete="new-password"
+                aria-label="Новый пароль"
                 v-model="newPassword"
                 type="password"
                 placeholder="Новый пароль"
@@ -210,8 +218,11 @@
         <M3Card padding="md" class="flex flex-col gap-3.5">
           <!-- Онлайн статус -->
           <div class="flex items-center justify-between text-xs">
-            <span class="font-medium text-surface-on">Кто видит статус "В сети"</span>
+            <label for="privacy_online_visibility" class="font-medium text-surface-on cursor-pointer">Кто видит статус "В сети"</label>
             <select
+              id="privacy_online_visibility"
+              name="privacy_online_visibility"
+              aria-label="Кто видит статус 'В сети'"
               v-model="settingsStore.settings.privacy.online_visibility"
               class="px-3 py-1.5 rounded-xl bg-surface-low border border-surface-high text-xs text-surface-on focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
               @change="settingsStore.saveSettings"
@@ -224,8 +235,11 @@
 
           <!-- Кто может писать -->
           <div class="flex items-center justify-between text-xs pt-2 border-t border-surface-high/40">
-            <span class="font-medium text-surface-on">Кто может писать сообщения</span>
+            <label for="privacy_can_message" class="font-medium text-surface-on cursor-pointer">Кто может писать сообщения</label>
             <select
+              id="privacy_can_message"
+              name="privacy_can_message"
+              aria-label="Кто может писать сообщения"
               v-model="settingsStore.settings.privacy.can_message"
               class="px-3 py-1.5 rounded-xl bg-surface-low border border-surface-high text-xs text-surface-on focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
               @change="settingsStore.saveSettings"
@@ -237,8 +251,11 @@
 
           <!-- Кто может добавлять в группы (ОБЯЗАТЕЛЬНО ПО ТЗ) -->
           <div class="flex items-center justify-between text-xs pt-2 border-t border-surface-high/40">
-            <span class="font-medium text-surface-on">Кто может добавлять в группы</span>
+            <label for="privacy_can_add_to_groups" class="font-medium text-surface-on cursor-pointer">Кто может добавлять в группы</label>
             <select
+              id="privacy_can_add_to_groups"
+              name="privacy_can_add_to_groups"
+              aria-label="Кто может добавлять в группы"
               v-model="settingsStore.settings.privacy.can_add_to_groups"
               class="px-3 py-1.5 rounded-xl bg-surface-low border border-surface-high text-xs text-surface-on focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
               @change="settingsStore.saveSettings"
@@ -411,10 +428,13 @@
           <!-- Автозагрузка медиа (ОБЯЗАТЕЛЬНО ПО ТЗ) -->
           <div class="flex items-center justify-between text-xs">
             <div class="flex flex-col">
-              <span class="font-medium text-surface-on">Автозагрузка медиа</span>
+              <label for="storage_auto_download" class="font-medium text-surface-on cursor-pointer">Автозагрузка медиа</label>
               <span class="text-[11px] text-surface-onVariant/70">Фотографии и голосовые</span>
             </div>
             <select
+              id="storage_auto_download"
+              name="storage_auto_download"
+              aria-label="Автозагрузка медиа"
               v-model="settingsStore.settings.storage.auto_download"
               class="px-3 py-1.5 rounded-xl bg-surface-low border border-surface-high text-xs text-surface-on focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
               @change="settingsStore.saveSettings"

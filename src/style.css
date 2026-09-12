@@ -122,7 +122,7 @@ html.dark[data-theme-palette="peach"] {
 }
 
 html, body, .font-sans {
-  font-family: 'Roboto Flex', 'Google Sans', 'Google Sans Text', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Google Sans', 'Google Sans Text', 'Roboto Flex', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 html {

@@ -4,59 +4,45 @@
     title="Комментарии"
     @update:model-value="$emit('update:modelValue', $event)"
   >
-    <div class="flex flex-col gap-4 min-h-[300px]">
-      <!-- Список комментариев -->
-      <div v-if="comments.length === 0" class="flex-1 flex flex-col items-center justify-center py-12 text-surface-onVariant/60 text-sm">
+    <!-- Только скроллируемый список -->
+    <div class="flex flex-col gap-3 min-h-[160px] pb-2">
+      <div v-if="comments.length === 0" class="flex-1 flex flex-col items-center justify-center py-10 text-surface-onVariant/60 text-sm">
         <span class="material-symbols-rounded text-4xl mb-2 text-primary opacity-50">forum</span>
         <span>Здесь пока нет комментариев. Напишите первым!</span>
       </div>
-
-      <div v-else class="flex flex-col gap-3">
-        <div
-          v-for="comment in comments"
-          :key="comment.id"
-          class="flex items-start gap-3 p-3 rounded-2xl bg-surface-low border border-surface-high/30"
-        >
-          <M3Avatar
-            :src="comment.author?.avatar_url"
-            :name="comment.author?.first_name || 'Пользователь'"
-            size="sm"
-          />
-          <div class="flex-1">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-surface-on">
-                {{ comment.author?.first_name }} {{ comment.author?.last_name || '' }}
-              </span>
-              <span class="text-[10px] text-surface-onVariant/60 font-mono">
-                {{ formatTime(comment.created_at) }}
-              </span>
-            </div>
-            <p class="text-xs text-surface-on mt-1 leading-relaxed select-text">
-              {{ comment.text }}
-            </p>
+      <div
+        v-for="comment in comments"
+        :key="comment.id"
+        class="flex items-start gap-3 p-3 rounded-2xl bg-surface-low border border-surface-high/30"
+      >
+        <M3Avatar :src="comment.author?.avatar_url" :name="comment.author?.first_name || 'Пользователь'" size="sm" />
+        <div class="flex-1">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-surface-on">{{ comment.author?.first_name }} {{ comment.author?.last_name || '' }}</span>
+            <span class="text-[10px] text-surface-onVariant/60 font-mono">{{ formatTime(comment.created_at) }}</span>
           </div>
+          <p class="text-xs text-surface-on mt-1 leading-relaxed select-text">{{ comment.text }}</p>
         </div>
       </div>
-
-      <!-- Поле добавления комментария -->
-      <div class="pt-3 border-t border-surface-high/50 flex items-center gap-2">
+    </div>
+    <!-- Зафиксированный футер: жестко привязан к низу шторки -->
+    <template #footer>
+      <div class="flex items-center gap-2">
         <input
+          id="comment_input"
+          name="comment"
           v-model="commentText"
           type="text"
           placeholder="Написать ответ..."
-          class="flex-1 px-4 py-2.5 rounded-full bg-surface-low border border-outline-variant/60 text-sm text-surface-on focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+          aria-label="Написать комментарий"
+          class="flex-1 px-4 py-2 rounded-full bg-surface border border-outline-variant/60 text-sm text-surface-on focus:outline-none focus:ring-2 focus:ring-primary transition-all"
           @keydown.enter="submitComment"
         />
-        <M3Button
-          variant="filled"
-          size="sm"
-          :disabled="!commentText.trim()"
-          @click="submitComment"
-        >
+        <M3Button variant="filled" size="sm" :disabled="!commentText.trim()" @click="submitComment">
           <span class="material-symbols-rounded text-base">send</span>
         </M3Button>
       </div>
-    </div>
+    </template>
   </M3BottomSheet>
 </template>
 

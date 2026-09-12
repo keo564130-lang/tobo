@@ -65,7 +65,9 @@
         <img
           :src="url"
           :alt="'Медиа ' + (idx + 1)"
-          class="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
+          width="800"
+          height="450"
+          class="w-full h-full object-cover aspect-video group-hover:scale-103 transition-transform duration-300"
           loading="lazy"
           @error="handleImageError(idx)"
         />
@@ -79,8 +81,9 @@
     </div>
 
     <!-- Панель интеракций (Likes, Comments, Repost, Bookmark) с Material Symbols Rounded -->
-    <div class="pt-2 border-t border-surface-high/40 flex items-center justify-between text-surface-onVariant/80 text-xs">
-      <div class="flex items-center gap-1 sm:gap-2">
+    <div class="pt-2 border-t border-surface-high/40 flex items-center justify-between text-surface-onVariant/80 text-xs -mx-1.5">
+      <!-- Левая группа -->
+      <div class="flex items-center gap-1">
         <!-- Кнопка Лайка с пружинной M3 анимацией -->
         <button
           class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full transition-all m3-press-effect hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
@@ -93,7 +96,7 @@
           >
             favorite
           </span>
-          <span class="font-mono">{{ post.likes_count }}</span>
+          <span class="font-mono text-xs">{{ post.likes_count }}</span>
         </button>
 
         <!-- Кнопка Комментариев (M3 Bottom Sheet) -->
@@ -120,8 +123,8 @@
         </button>
       </div>
 
-      <!-- Правая часть: Избранное и Просмотры -->
-      <div class="flex items-center gap-1.5 ml-auto shrink-0">
+      <!-- Правая группа (симметричные отступы от правого края карточки) -->
+      <div class="flex items-center gap-1 shrink-0">
         <!-- Избранное пастельно-желтым -->
         <button
           class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full transition-all m3-press-effect hover:bg-amber-100/40 dark:hover:bg-amber-950/30 cursor-pointer"
@@ -137,9 +140,8 @@
           </span>
           <span class="hidden sm:inline text-xs">{{ post.is_bookmarked ? 'В избранном' : 'В избранное' }}</span>
         </button>
-        <!-- Просмотры без переноса -->
-        <div class="flex items-center gap-1 text-surface-onVariant/50 font-mono text-xs pl-1">
-          <span class="material-symbols-rounded text-sm">visibility</span>
+        <div class="flex items-center gap-1.5 px-2.5 py-1.5 text-surface-onVariant/60 font-mono text-xs select-none">
+          <span class="material-symbols-rounded text-base">visibility</span>
           <span>{{ post.views_count }}</span>
         </div>
       </div>

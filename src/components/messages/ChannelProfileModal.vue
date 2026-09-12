@@ -39,11 +39,14 @@
 
       <!-- Настройки уведомлений канала -->
       <div class="flex items-center justify-between p-3.5 rounded-2xl bg-surface-low border border-surface-high/40">
-        <div class="flex items-center gap-3">
+        <label for="channel_notifications_toggle" class="flex items-center gap-3 cursor-pointer">
           <span class="material-symbols-rounded text-surface-onVariant text-xl">notifications</span>
           <span class="text-xs font-semibold text-surface-on">Уведомления канала</span>
-        </div>
+        </label>
         <input
+          id="channel_notifications_toggle"
+          name="channel_notifications"
+          aria-label="Уведомления канала"
           v-model="notificationsEnabled"
           type="checkbox"
           class="w-5 h-5 accent-primary rounded cursor-pointer"

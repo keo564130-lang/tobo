@@ -8,7 +8,7 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Roboto Flex"', '"Google Sans"', '"Google Sans Text"', 'Roboto', '-apple-system', 'sans-serif'],
+        sans: ['"Google Sans"', '"Google Sans Text"', '"Roboto Flex"', 'Roboto', '-apple-system', 'sans-serif'],
         mono: ['"Roboto Mono"', 'monospace'],
       },
       colors: {

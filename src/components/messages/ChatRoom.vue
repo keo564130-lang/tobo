@@ -213,13 +213,16 @@
         <!-- Стандартная панель ввода -->
         <template v-else>
           <!-- Прикрепить медиа -->
-          <label class="w-10 h-10 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high cursor-pointer transition-colors m3-press-effect shrink-0">
+          <label for="chat_attach_file" class="w-10 h-10 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high cursor-pointer transition-colors m3-press-effect shrink-0">
             <span class="material-symbols-rounded text-xl">attach_file</span>
-            <input type="file" class="hidden" @change="handleAttach" />
+            <input id="chat_attach_file" name="attachment" aria-label="Прикрепить файл" type="file" class="hidden" @change="handleAttach" />
           </label>
 
           <!-- Поле ввода текста сообщения -->
           <input
+            id="chat_message_input"
+            name="message"
+            aria-label="Сообщение"
             v-model="inputText"
             type="text"
             placeholder="Сообщение..."

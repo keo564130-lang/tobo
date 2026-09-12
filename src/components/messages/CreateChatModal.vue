@@ -7,10 +7,13 @@
     <div class="flex flex-col gap-4">
       <!-- Название / Имя -->
       <div>
-        <label class="block text-xs font-semibold text-surface-on mb-1.5">
+        <label for="create_chat_title" class="block text-xs font-semibold text-surface-on mb-1.5 cursor-pointer">
           {{ type === 'direct' ? 'Имя контакта' : (type === 'group' ? 'Название группы' : 'Название канала') }}
         </label>
         <input
+          id="create_chat_title"
+          name="chat_title"
+          aria-label="Название чата"
           v-model="title"
           type="text"
           :placeholder="type === 'direct' ? 'Например: Миша Смирнов' : (type === 'group' ? 'Например: Семья, Коллеги' : 'Например: Новости tobo')"
@@ -20,10 +23,13 @@
 
       <!-- Описание (для групп и каналов) -->
       <div v-if="type !== 'direct'">
-        <label class="block text-xs font-semibold text-surface-on mb-1.5">
+        <label for="create_chat_desc" class="block text-xs font-semibold text-surface-on mb-1.5 cursor-pointer">
           Описание (необязательно)
         </label>
         <textarea
+          id="create_chat_desc"
+          name="chat_description"
+          aria-label="Описание чата"
           v-model="description"
           rows="2"
           placeholder="Опишите назначение или правила..."
