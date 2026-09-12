@@ -74,6 +74,28 @@ class LocalDataStore {
   private realtimeListeners: Set<(event: { type: string; payload: unknown }) => void> = new Set();
 
   constructor() {
+    // Проверка и сброс устаревших мок-данных, содержащих ссылки на Unsplash
+    const postCache = localStorage.getItem(STORAGE_KEYS.POSTS);
+    if (postCache && postCache.includes('unsplash.com')) {
+      localStorage.removeItem(STORAGE_KEYS.POSTS);
+    }
+    const chatCache = localStorage.getItem(STORAGE_KEYS.CHATS);
+    if (chatCache && chatCache.includes('unsplash.com')) {
+      localStorage.removeItem(STORAGE_KEYS.CHATS);
+    }
+    const commentCache = localStorage.getItem(STORAGE_KEYS.COMMENTS);
+    if (commentCache && commentCache.includes('unsplash.com')) {
+      localStorage.removeItem(STORAGE_KEYS.COMMENTS);
+    }
+    const userCache = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+    if (userCache && userCache.includes('unsplash.com')) {
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    }
+    const messageCache = localStorage.getItem(STORAGE_KEYS.MESSAGES);
+    if (messageCache && messageCache.includes('unsplash.com')) {
+      localStorage.removeItem(STORAGE_KEYS.MESSAGES);
+    }
+
     // 1. Инициализация профилей
     this.profiles.set(currentUserMock.id, { ...currentUserMock });
     this.profiles.set(mishaProfileMock.id, { ...mishaProfileMock });

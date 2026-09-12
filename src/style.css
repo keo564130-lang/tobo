@@ -103,6 +103,10 @@ html.dark[data-theme-palette="peach"] {
   --color-on-primary-container: #FDE8DD;
 }
 
+html, body, .font-sans {
+  font-family: 'Roboto Flex', 'Google Sans', 'Google Sans Text', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
 html {
   font-size: var(--font-scale);
   -webkit-tap-highlight-color: transparent;
