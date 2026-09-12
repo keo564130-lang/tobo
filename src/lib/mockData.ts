@@ -5,6 +5,13 @@
 
 import type { Profile, Post, Chat, Message, ActiveSession } from '@/types/database';
 
+// Надежные пастельные фолбэк-изображения (SVG Data URI)
+const pastelMedia1 = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450"><defs><linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%239EB7E5"/><stop offset="50%" stop-color="%23D6C7E5"/><stop offset="100%" stop-color="%23BCE7D0"/></linearGradient></defs><rect width="800" height="450" rx="36" fill="url(%23g1)"/><circle cx="240" cy="225" r="110" fill="%23FFFFFF" fill-opacity="0.35"/><circle cx="560" cy="225" r="90" fill="%23FFFFFF" fill-opacity="0.25"/><text x="400" y="235" font-family="sans-serif" font-size="34" font-weight="bold" fill="%231B315B" text-anchor="middle">Material 3 Expressive</text><text x="400" y="275" font-family="sans-serif" font-size="18" fill="%231B315B" fill-opacity="0.8" text-anchor="middle">tobo design system</text></svg>`;
+
+const pastelMedia2 = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450"><defs><linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23FAD2B8"/><stop offset="100%" stop-color="%23D6C7E5"/></linearGradient></defs><rect width="800" height="450" rx="36" fill="url(%23g2)"/><path d="M150,300 C300,180 500,320 650,200" stroke="%23FFFFFF" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.6"/><circle cx="400" cy="200" r="70" fill="%23FFFFFF" fill-opacity="0.4"/><text x="400" y="210" font-family="sans-serif" font-size="32" font-weight="bold" fill="%233A284E" text-anchor="middle">Vue 3 + Spring Dynamics</text></svg>`;
+
+const pastelMedia3 = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450"><defs><linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23BCE7D0"/><stop offset="100%" stop-color="%239EB7E5"/></linearGradient></defs><rect width="800" height="450" rx="36" fill="url(%23g3)"/><circle cx="400" cy="225" r="95" fill="%23FFFFFF" fill-opacity="0.4"/><text x="400" y="235" font-family="sans-serif" font-size="30" font-weight="bold" fill="%2316432B" text-anchor="middle">Pastel Harmony</text></svg>`;
+
 export const currentUserMock: Profile = {
   id: 'user-me-001',
   username: 'alex_tobo',
@@ -61,8 +68,8 @@ export const initialPostsMock: Post[] = [
     author: toboOfficialProfileMock,
     content: '🎉 Добро пожаловать в tobo — новую социальную сеть и мессенджер в стандарте Material 3 Expressive!\n\nМы полностью переосмыслили пользовательский опыт: пастельные гармонии, плавающие островки, адаптивные тональные контейнеры и кристально чистый звук голосовых сообщений. Делитесь мыслями, общайтесь и сохраняйте лучшее в Избранное!',
     media_urls: [
-      'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1000&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=1000&auto=format&fit=crop&q=80'
+      pastelMedia1,
+      'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1000&auto=format&fit=crop&q=80'
     ],
     disable_comments: false,
     audience: 'all',
@@ -81,7 +88,7 @@ export const initialPostsMock: Post[] = [
     author: mishaProfileMock,
     content: 'Плавающий нижний островок в tobo ощущается невероятно тактильно! Пружинные анимации M3 Expressive создают то самое ощущение физического контакта с интерфейсом. Команда провела колоссальную работу по оптимизации рендеринга.',
     media_urls: [
-      'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1000&auto=format&fit=crop&q=80'
+      pastelMedia2
     ],
     disable_comments: false,
     audience: 'all',
@@ -100,7 +107,7 @@ export const initialPostsMock: Post[] = [
     author: annaProfileMock,
     content: 'Пастельная палитра (Pastel Sky, Lavender, Mint, Peach) в сочетании с молочно-пудровой светлой темой и графитовой тёмной — это просто спасение для глаз при длительной работе вечером. Никаких токсичных контрастов, только гармония 🌸',
     media_urls: [
-      'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1000&auto=format&fit=crop&q=80'
+      pastelMedia3
     ],
     disable_comments: false,
     audience: 'all',

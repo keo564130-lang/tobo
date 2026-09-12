@@ -71,9 +71,7 @@
           class="w-full border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-900/50 dark:text-rose-400 dark:hover:bg-rose-950/20"
           @click="handleBlock"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-          </svg>
+          <span class="material-symbols-rounded text-lg">block</span>
           <span>Заблокировать</span>
         </M3Button>
 
@@ -151,7 +149,7 @@ const chatStore = useChatStore();
 const toastStore = useToastStore();
 
 const showReportModal = ref(false);
-const selectedReason = ref('Спам');
+const selectedReason = ref('Спам и нежелательные рассылки');
 
 const reportReasons = [
   'Спам и нежелательные рассылки',
@@ -165,7 +163,7 @@ const isBlocked = computed(() => {
   return chatStore.isUserBlocked(props.profile.id);
 });
 
-// Пример общих групп пользователя и собеседника
+// Общие группы пользователя и собеседника
 const mutualGroups = computed<Partial<Chat>[]>(() => {
   return [
     {

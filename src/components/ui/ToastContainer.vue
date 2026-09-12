@@ -17,28 +17,21 @@
               toast.type === 'info' ? 'bg-primary-container text-primary-on dark:bg-primary-container dark:text-primary-onContainer' : ''
             ]"
           >
-            <svg v-if="toast.type === 'success'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
-            </svg>
-            <svg v-else-if="toast.type === 'error'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <span v-if="toast.type === 'success'" class="material-symbols-rounded text-base font-bold">check</span>
+            <span v-else-if="toast.type === 'error'" class="material-symbols-rounded text-base font-bold">close</span>
+            <span v-else-if="toast.type === 'warning'" class="material-symbols-rounded text-base font-bold">priority_high</span>
+            <span v-else class="material-symbols-rounded text-base font-bold">info</span>
           </div>
 
-          <span class="text-surface-on flex-1 leading-snug">
+          <span class="text-surface-on flex-1 leading-snug text-xs">
             {{ toast.message }}
           </span>
 
           <button
-            class="text-surface-onVariant/60 hover:text-surface-on p-1 rounded-full transition-colors"
+            class="text-surface-onVariant/60 hover:text-surface-on p-1 rounded-full transition-colors cursor-pointer"
             @click="toastStore.remove(toast.id)"
           >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <span class="material-symbols-rounded text-base">close</span>
           </button>
         </div>
       </TransitionGroup>

@@ -18,13 +18,13 @@
       <template #trailing>
         <!-- Кнопка обновления ленты -->
         <button
-          class="w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect"
+          class="w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect cursor-pointer"
           title="Обновить ленту"
           @click="handleRefresh"
         >
-          <svg class="w-5 h-5" :class="{ 'animate-spin': isRefreshing }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
+          <span class="material-symbols-rounded text-xl" :class="{ 'animate-spin': isRefreshing }">
+            refresh
+          </span>
         </button>
 
         <!-- Expressive Кнопка создания поста (+) -->
@@ -34,9 +34,7 @@
           class="shadow-sm"
           @click="showCreateModal = true"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
-          </svg>
+          <span class="material-symbols-rounded text-lg">add</span>
           <span class="hidden sm:inline">Создать</span>
         </M3Button>
       </template>
@@ -44,12 +42,10 @@
 
     <!-- Список постов ленты -->
     <div class="flex flex-col gap-4">
-      <!-- Баннер алгоритма Time Decay для наглядности -->
+      <!-- Баннер алгоритма Time Decay -->
       <div class="px-4 py-3 rounded-2xl bg-surface-lowest/70 border border-primary/20 backdrop-blur-sm flex items-center justify-between text-xs text-surface-onVariant">
         <div class="flex items-center gap-2">
-          <svg class="w-4 h-4 text-primary shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
+          <span class="material-symbols-rounded text-primary text-base shrink-0">bolt</span>
           <span>Лента ранжируется по вовлеченности с затуханием во времени (Time Decay)</span>
         </div>
         <span class="font-mono text-[10px] text-primary font-bold">M3 Expressive</span>
@@ -103,13 +99,13 @@ function openComments(post: Post) {
   showCommentsSheet.value = true;
 }
 
-function handleRefresh() {
+async function handleRefresh() {
   isRefreshing.value = true;
-  feedStore.refreshFeed();
+  await feedStore.refreshFeed();
   setTimeout(() => {
     isRefreshing.value = false;
     toastStore.show('Лента обновлена актуальными рекомендациями', 'info');
-  }, 400);
+  }, 300);
 }
 
 function scrollToTop() {

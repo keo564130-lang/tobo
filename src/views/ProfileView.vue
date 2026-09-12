@@ -1,19 +1,24 @@
 <template>
   <div class="min-h-screen pb-28 pt-18 px-4 max-w-2xl mx-auto">
-    <!-- Верхний плавающий островок профиля -->
+    <!-- Верхний плавающий островок профиля (Floating Top Bar Island) -->
     <FloatingTopBar>
       <template #leading>
-        <span class="font-bold text-surface-on text-base">Профиль</span>
+        <div class="flex items-center gap-2">
+          <span class="font-extrabold tracking-tight text-2xl text-primary font-mono select-none">tobo</span>
+          <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary-container text-primary-onContainer">
+            Профиль
+          </span>
+        </div>
       </template>
 
       <template #trailing>
-        <!-- Переключатель демонстрационных аккаунтов (для проверки симметрии) -->
+        <!-- Переключатель тестового аккаунта ("Алексей" <-> "Миша") -->
         <button
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-low text-xs font-semibold text-surface-on hover:bg-surface-high transition-colors m3-press-effect"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-low text-xs font-semibold text-surface-on hover:bg-surface-high transition-colors m3-press-effect cursor-pointer"
           title="Сменить активного пользователя для проверки диалогов"
           @click="toggleDemoUser"
         >
-          <span>👤 Аккаунт:</span>
+          <span class="material-symbols-rounded text-sm text-primary">swap_horiz</span>
           <span class="text-primary font-mono font-bold">{{ authStore.user.first_name }}</span>
         </button>
 
@@ -23,10 +28,7 @@
           class="w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect"
           title="Настройки приложения"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
+          <span class="material-symbols-rounded text-2xl">settings</span>
         </router-link>
       </template>
     </FloatingTopBar>
@@ -43,7 +45,7 @@
         <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
       </div>
 
-      <!-- Выступающий круглый аватар (Overlap) -->
+      <!-- Выступающий круглый аватар (Overlap) с идеальной круглой рамкой ring-4 -->
       <div class="px-5 pb-5">
         <div class="flex items-end justify-between -mt-12 mb-3">
           <div class="relative">
@@ -51,7 +53,7 @@
               :src="authStore.user.avatar_url"
               :name="authStore.user.first_name"
               size="2xl"
-              class="ring-4 ring-surface-lowest shadow-elevation-2"
+              class="ring-4 ring-surface-lowest shadow-elevation-2 rounded-full"
             />
           </div>
 
@@ -61,9 +63,7 @@
             size="sm"
             @click="showEditModal = true"
           >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
+            <span class="material-symbols-rounded text-base">edit</span>
             <span>Редактировать</span>
           </M3Button>
         </div>
@@ -83,7 +83,7 @@
       </div>
     </div>
 
-    <!-- BENTO GRID ("Квадратики" / Экспрессивный хаб сервисов) -->
+    <!-- BENTO GRID ("Квадратики" / Экспрессивный хаб сервисов с Material Symbols) -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-6">
       <!-- Плитка 1: Настройки -->
       <router-link
@@ -91,9 +91,7 @@
         class="p-4 rounded-3xl bg-surface-lowest border border-surface-high/60 shadow-xs hover:shadow-elevation-1 transition-all flex flex-col justify-between h-28 m3-press-effect"
       >
         <div class="w-8 h-8 rounded-2xl bg-primary-container text-primary-on flex items-center justify-center">
-          <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-          </svg>
+          <span class="material-symbols-rounded text-lg">tune</span>
         </div>
         <div>
           <span class="text-xs font-bold text-surface-on block">Настройки</span>
@@ -107,9 +105,7 @@
         @click="goToSavedChat"
       >
         <div class="w-8 h-8 rounded-2xl bg-secondary-container text-secondary-on flex items-center justify-center">
-          <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-          </svg>
+          <span class="material-symbols-rounded text-lg">bookmark</span>
         </div>
         <div>
           <span class="text-xs font-bold text-surface-on block">Избранное</span>
@@ -123,9 +119,7 @@
         @click="toastStore.show('Галерея медиафайлов синхронизирована', 'info')"
       >
         <div class="w-8 h-8 rounded-2xl bg-tertiary-container text-tertiary-on flex items-center justify-center">
-          <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
+          <span class="material-symbols-rounded text-lg">photo_library</span>
         </div>
         <div>
           <span class="text-xs font-bold text-surface-on block">Мои медиа</span>
@@ -136,16 +130,14 @@
       <!-- Плитка 4: Друзья и подписки -->
       <div
         class="p-4 rounded-3xl bg-surface-lowest border border-surface-high/60 shadow-xs hover:shadow-elevation-1 transition-all flex flex-col justify-between h-28 cursor-pointer m3-press-effect"
-        @click="toastStore.show('Список друзей: Миша, Анна, Елена', 'info')"
+        @click="toastStore.show('Контакты: Миша Смирнов, Анна Кузнецова, tobo team', 'info')"
       >
         <div class="w-8 h-8 rounded-2xl bg-tobo-peach-container text-tobo-peach-text flex items-center justify-center">
-          <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
+          <span class="material-symbols-rounded text-lg">group</span>
         </div>
         <div>
           <span class="text-xs font-bold text-surface-on block">Друзья</span>
-          <span class="text-[10px] text-surface-onVariant/60">4 контакта</span>
+          <span class="text-[10px] text-surface-onVariant/60">3 контакта</span>
         </div>
       </div>
     </div>

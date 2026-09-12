@@ -2,7 +2,7 @@
   <div class="flex items-center gap-3 w-full bg-surface-low px-4 py-2 rounded-full border border-primary/30 animate-pulse-subtle">
     <!-- Индикатор записи -->
     <div class="flex items-center gap-2">
-      <span class="w-3 h-3 rounded-full bg-rose-500 animate-ping" />
+      <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
       <span class="text-xs font-mono font-bold text-rose-500">
         {{ formattedDuration }}
       </span>
@@ -22,24 +22,20 @@
 
     <!-- Кнопка отмены -->
     <button
-      class="w-8 h-8 rounded-full flex items-center justify-center text-surface-onVariant/60 hover:text-rose-500 hover:bg-surface-high transition-colors"
+      class="w-8 h-8 rounded-full flex items-center justify-center text-surface-onVariant/60 hover:text-rose-500 hover:bg-surface-high transition-colors cursor-pointer"
       title="Отменить запись"
       @click="cancelRecording"
     >
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-      </svg>
+      <span class="material-symbols-rounded text-lg">delete</span>
     </button>
 
     <!-- Кнопка отправки голосового -->
     <button
-      class="w-9 h-9 rounded-full bg-primary text-primary-on flex items-center justify-center shadow-xs hover:scale-105 active:scale-95 transition-all m3-press-effect"
+      class="w-9 h-9 rounded-full bg-primary text-primary-on flex items-center justify-center shadow-xs hover:scale-105 active:scale-95 transition-all m3-press-effect cursor-pointer"
       title="Отправить голосовое сообщение"
       @click="stopAndSend"
     >
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
-      </svg>
+      <span class="material-symbols-rounded text-lg">arrow_upward</span>
     </button>
   </div>
 </template>

@@ -19,18 +19,20 @@
           <!-- Селектор аудитории -->
           <div class="flex items-center gap-2 mt-0.5">
             <button
-              class="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs transition-colors"
+              class="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs transition-colors cursor-pointer"
               :class="audience === 'all' ? 'bg-primary-container text-primary-on font-semibold' : 'bg-surface-low text-surface-onVariant'"
               @click="audience = 'all'"
             >
-              <span>🌐 Для всех</span>
+              <span class="material-symbols-rounded text-xs">public</span>
+              <span>Для всех</span>
             </button>
             <button
-              class="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs transition-colors"
+              class="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs transition-colors cursor-pointer"
               :class="audience === 'friends' ? 'bg-primary-container text-primary-on font-semibold' : 'bg-surface-low text-surface-onVariant'"
               @click="audience = 'friends'"
             >
-              <span>👥 Только друзья</span>
+              <span class="material-symbols-rounded text-xs">group</span>
+              <span>Только друзья</span>
             </button>
           </div>
         </div>
@@ -55,22 +57,17 @@
         >
           <img :src="url" class="w-full h-full object-cover" />
           <button
-            class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-rose-600 transition-colors"
+            class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-rose-600 transition-colors cursor-pointer"
             @click="removeMedia(idx)"
           >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <span class="material-symbols-rounded text-xs">close</span>
           </button>
         </div>
       </div>
 
       <!-- Индикатор сжатия WebP -->
-      <div v-if="isCompressing" class="flex items-center gap-2 text-xs text-primary animate-pulse">
-        <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
+      <div v-if="isCompressing" class="flex items-center gap-2 text-xs text-primary animate-pulse font-medium">
+        <span class="material-symbols-rounded text-sm animate-spin">sync</span>
         <span>Клиентская компрессия изображения в WebP...</span>
       </div>
 
@@ -90,9 +87,7 @@
       <!-- Кнопка добавления фото и отправка -->
       <div class="flex items-center justify-between pt-2 border-t border-surface-high/40">
         <label class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-low hover:bg-surface-high text-xs font-medium text-surface-on cursor-pointer transition-colors m3-press-effect">
-          <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
+          <span class="material-symbols-rounded text-lg text-primary">add_photo_alternate</span>
           <span>Добавить фото</span>
           <input
             type="file"
@@ -155,11 +150,10 @@ async function handleFileUpload(e: Event) {
   try {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      // Клиентская компрессия в WebP с оптимизацией
       const { dataUrl } = await compressImageToWebP(file, { maxWidth: 1400, quality: 0.82 });
       mediaUrls.value.push(dataUrl);
     }
-    toastStore.show(`Загружено изображений: ${files.length} (сжато в WebP)`, 'info');
+    toastStore.show(`Загружено фото: ${files.length} (сжато в WebP)`, 'info');
   } catch (err) {
     toastStore.show('Ошибка сжатия изображения', 'error');
   } finally {
@@ -172,17 +166,16 @@ function removeMedia(idx: number) {
   mediaUrls.value.splice(idx, 1);
 }
 
-function submitPost() {
+async function submitPost() {
   if (!content.value.trim() && mediaUrls.value.length === 0) return;
 
-  feedStore.createPost(
+  await feedStore.createPost(
     content.value.trim(),
     [...mediaUrls.value],
     disableComments.value,
     audience.value
   );
 
-  // Сброс формы
   content.value = '';
   mediaUrls.value = [];
   disableComments.value = false;

@@ -9,9 +9,12 @@
         :class="currentTab === 'feed' ? 'text-primary-onContainer font-bold' : 'text-surface-onVariant/70 hover:text-surface-on'"
       >
         <div class="relative flex items-center justify-center">
-          <svg class="w-6 h-6 transition-transform duration-300" :class="{ 'scale-110': currentTab === 'feed' }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-          </svg>
+          <M3Icon
+            name="dynamic_feed"
+            :filled="currentTab === 'feed'"
+            class="transition-transform duration-300"
+            :class="{ 'scale-110': currentTab === 'feed' }"
+          />
         </div>
         <span class="text-[11px] mt-0.5 tracking-tight font-medium">Лента</span>
       </router-link>
@@ -23,13 +26,16 @@
         :class="currentTab === 'messages' ? 'text-primary-onContainer font-bold' : 'text-surface-onVariant/70 hover:text-surface-on'"
       >
         <div class="relative flex items-center justify-center">
-          <svg class="w-6 h-6 transition-transform duration-300" :class="{ 'scale-110': currentTab === 'messages' }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
+          <M3Icon
+            name="chat"
+            :filled="currentTab === 'messages'"
+            class="transition-transform duration-300"
+            :class="{ 'scale-110': currentTab === 'messages' }"
+          />
           <!-- Бейдж непрочитанных сообщений -->
           <span
             v-if="unreadCount > 0"
-            class="absolute -top-1 -right-2 px-1.5 py-0.2 min-w-4 text-[10px] font-bold rounded-full bg-primary text-primary-on flex items-center justify-center shadow-xs"
+            class="absolute -top-1 -right-2 px-1.5 py-0.2 min-w-4 text-[10px] font-bold rounded-full bg-primary text-primary-on flex items-center justify-center shadow-xs font-mono"
           >
             {{ unreadCount }}
           </span>
@@ -44,9 +50,12 @@
         :class="currentTab === 'profile' ? 'text-primary-onContainer font-bold' : 'text-surface-onVariant/70 hover:text-surface-on'"
       >
         <div class="relative flex items-center justify-center">
-          <svg class="w-6 h-6 transition-transform duration-300" :class="{ 'scale-110': currentTab === 'profile' }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
+          <M3Icon
+            name="account_circle"
+            :filled="currentTab === 'profile'"
+            class="transition-transform duration-300"
+            :class="{ 'scale-110': currentTab === 'profile' }"
+          />
         </div>
         <span class="text-[11px] mt-0.5 tracking-tight font-medium">Профиль</span>
       </router-link>
@@ -64,6 +73,7 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useChatStore } from '@/stores/chat';
+import M3Icon from '@/components/ui/M3Icon.vue';
 
 const route = useRoute();
 const chatStore = useChatStore();

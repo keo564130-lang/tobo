@@ -1,16 +1,13 @@
 <template>
   <div class="flex items-center gap-3 py-1 px-1 select-none">
-    <!-- Кнопка воспроизведения/паузы с пружинным эффектом -->
+    <!-- Кнопка воспроизведения/паузы с пружинным эффектом и Material Symbols -->
     <button
-      class="w-9 h-9 rounded-full bg-primary text-primary-on flex items-center justify-center shrink-0 shadow-xs hover:scale-105 active:scale-95 transition-all m3-press-effect"
+      class="w-9 h-9 rounded-full bg-primary text-primary-on flex items-center justify-center shrink-0 shadow-xs hover:scale-105 active:scale-95 transition-all m3-press-effect cursor-pointer"
       @click="togglePlay"
     >
-      <svg v-if="!isPlaying" class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M8 5v14l11-7z" />
-      </svg>
-      <svg v-else class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-      </svg>
+      <span class="material-symbols-rounded text-xl" :class="{ 'ml-0.5': !isPlaying }">
+        {{ isPlaying ? 'pause' : 'play_arrow' }}
+      </span>
     </button>
 
     <!-- Пастельная звуковая волна -->

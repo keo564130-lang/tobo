@@ -1,5 +1,5 @@
 <template>
-  <div class="relative inline-flex items-center justify-center shrink-0">
+  <div class="relative inline-flex items-center justify-center shrink-0 rounded-full">
     <img
       v-if="src && !hasError"
       :src="src"

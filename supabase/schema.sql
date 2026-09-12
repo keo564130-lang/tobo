@@ -182,14 +182,28 @@ CREATE INDEX IF NOT EXISTS idx_chat_members_user ON public.chat_members(user_id)
 
 ALTER TABLE public.chat_members ENABLE ROW LEVEL SECURITY;
 
+-- Вспомогательные функции с SECURITY DEFINER для исключения бесконечной рекурсии в RLS
+CREATE OR REPLACE FUNCTION public.is_chat_member(_chat_id UUID, _user_id UUID)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM public.chat_members 
+        WHERE chat_id = _chat_id AND user_id = _user_id
+    );
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_chat_admin(_chat_id UUID, _user_id UUID)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM public.chat_members 
+        WHERE chat_id = _chat_id AND user_id = _user_id AND role IN ('owner', 'admin')
+    );
+$$;
+
 CREATE POLICY "Пользователь видит только те чаты, в которых состоит, или публичные каналы" 
     ON public.chats FOR SELECT 
     USING (
         type = 'channel' OR
-        EXISTS (
-            SELECT 1 FROM public.chat_members 
-            WHERE chat_members.chat_id = chats.id AND chat_members.user_id = auth.uid()
-        )
+        public.is_chat_member(id, auth.uid())
     );
 
 CREATE POLICY "Создавать чат может любой авторизованный пользователь" 
@@ -198,32 +212,17 @@ CREATE POLICY "Создавать чат может любой авторизо�
 
 CREATE POLICY "Обновлять чат могут владельцы и администраторы" 
     ON public.chats FOR UPDATE 
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.chat_members 
-            WHERE chat_members.chat_id = chats.id 
-              AND chat_members.user_id = auth.uid() 
-              AND chat_members.role IN ('owner', 'admin')
-        )
-    );
+    USING (public.is_chat_admin(id, auth.uid()));
 
 CREATE POLICY "Участники чатов видны членам чата (для каналов - только админам)" 
     ON public.chat_members FOR SELECT 
     USING (
+        user_id = auth.uid() OR
         EXISTS (
             SELECT 1 FROM public.chats c
             WHERE c.id = chat_members.chat_id AND (
-                (c.type != 'channel' AND EXISTS (
-                    SELECT 1 FROM public.chat_members cm2 
-                    WHERE cm2.chat_id = c.id AND cm2.user_id = auth.uid()
-                )) OR
-                (c.type = 'channel' AND (
-                    chat_members.user_id = auth.uid() OR
-                    EXISTS (
-                        SELECT 1 FROM public.chat_members cm_adm
-                        WHERE cm_adm.chat_id = c.id AND cm_adm.user_id = auth.uid() AND cm_adm.role IN ('owner', 'admin')
-                    )
-                ))
+                (c.type != 'channel' AND public.is_chat_member(c.id, auth.uid())) OR
+                (c.type = 'channel' AND public.is_chat_admin(c.id, auth.uid()))
             )
         )
     );
@@ -232,10 +231,7 @@ CREATE POLICY "Добавлять участников могут админы �
     ON public.chat_members FOR INSERT 
     WITH CHECK (
         auth.uid() = user_id OR
-        EXISTS (
-            SELECT 1 FROM public.chat_members cm 
-            WHERE cm.chat_id = chat_members.chat_id AND cm.user_id = auth.uid() AND cm.role IN ('owner', 'admin')
-        ) OR
+        public.is_chat_admin(chat_id, auth.uid()) OR
         EXISTS (
             SELECT 1 FROM public.chats c 
             WHERE c.id = chat_members.chat_id AND c.created_by = auth.uid()
@@ -246,10 +242,7 @@ CREATE POLICY "Админы могут удалять участников ил�
     ON public.chat_members FOR DELETE 
     USING (
         auth.uid() = user_id OR
-        EXISTS (
-            SELECT 1 FROM public.chat_members cm 
-            WHERE cm.chat_id = chat_members.chat_id AND cm.user_id = auth.uid() AND cm.role IN ('owner', 'admin')
-        )
+        public.is_chat_admin(chat_id, auth.uid())
     );
 
 -- ------------------------------------------------------------------------------
@@ -280,10 +273,7 @@ CREATE POLICY "Пользователь видит сообщения тольк
             SELECT 1 FROM public.chats c 
             WHERE c.id = messages.chat_id AND (
                 c.type = 'channel' OR
-                EXISTS (
-                    SELECT 1 FROM public.chat_members cm 
-                    WHERE cm.chat_id = messages.chat_id AND cm.user_id = auth.uid()
-                )
+                public.is_chat_member(c.id, auth.uid())
             )
         )
     );
@@ -295,14 +285,8 @@ CREATE POLICY "Отправлять сообщения могут участни
         EXISTS (
             SELECT 1 FROM public.chats c 
             WHERE c.id = messages.chat_id AND (
-                (c.type != 'channel' AND EXISTS (
-                    SELECT 1 FROM public.chat_members cm 
-                    WHERE cm.chat_id = messages.chat_id AND cm.user_id = auth.uid()
-                )) OR
-                (c.type = 'channel' AND EXISTS (
-                    SELECT 1 FROM public.chat_members cm 
-                    WHERE cm.chat_id = messages.chat_id AND cm.user_id = auth.uid() AND cm.role IN ('owner', 'admin')
-                ))
+                (c.type != 'channel' AND public.is_chat_member(c.id, auth.uid())) OR
+                (c.type = 'channel' AND public.is_chat_admin(c.id, auth.uid()))
             )
         )
     );
@@ -315,10 +299,7 @@ CREATE POLICY "Удалять сообщение может его отправ�
     ON public.messages FOR DELETE 
     USING (
         auth.uid() = sender_id OR
-        EXISTS (
-            SELECT 1 FROM public.chat_members cm 
-            WHERE cm.chat_id = messages.chat_id AND cm.user_id = auth.uid() AND cm.role IN ('owner', 'admin')
-        )
+        public.is_chat_admin(chat_id, auth.uid())
     );
 
 -- ------------------------------------------------------------------------------

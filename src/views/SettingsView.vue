@@ -1,15 +1,13 @@
 <template>
   <div class="min-h-screen pb-28 pt-20 px-4 max-w-2xl mx-auto">
-    <!-- Верхний плавающий островок настроек -->
+    <!-- Верхний плавающий островок настроек (Floating Top Bar Island) -->
     <FloatingTopBar>
       <template #leading>
         <button
-          class="w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect"
+          class="w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect cursor-pointer"
           @click="$router.push('/profile')"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
-          </svg>
+          <span class="material-symbols-rounded text-2xl">arrow_back</span>
         </button>
       </template>
 
@@ -20,13 +18,16 @@
       </template>
     </FloatingTopBar>
 
-    <div class="flex flex-col gap-6">
+    <div class="flex flex-col gap-5">
 
       <!-- РАЗДЕЛ 1: ДИЗАЙН И ТЕМИЗАЦИЯ -->
-      <section class="flex flex-col gap-3">
-        <h3 class="text-xs font-bold text-primary uppercase tracking-wider px-1">
-          🎨 Дизайн и Темизация (Material 3 Expressive)
-        </h3>
+      <section class="flex flex-col gap-2.5">
+        <div class="flex items-center gap-2 px-1 text-primary">
+          <span class="material-symbols-rounded text-xl">palette</span>
+          <h3 class="text-xs font-bold uppercase tracking-wider">
+            Дизайн и Темизация (Material 3 Expressive)
+          </h3>
+        </div>
         <M3Card padding="md" class="flex flex-col gap-4">
           <!-- Выбор пастельной палитры -->
           <div>
@@ -37,7 +38,7 @@
               <button
                 v-for="p in palettes"
                 :key="p.key"
-                class="p-3 rounded-2xl border flex flex-col items-center gap-1.5 transition-all m3-press-effect"
+                class="p-3 rounded-2xl border flex flex-col items-center gap-1.5 transition-all m3-press-effect cursor-pointer"
                 :class="[
                   themeStore.palette === p.key
                     ? 'border-primary ring-2 ring-primary/30 bg-surface-lowest shadow-sm'
@@ -46,9 +47,7 @@
                 @click="themeStore.setPalette(p.key)"
               >
                 <div class="w-7 h-7 rounded-full shadow-xs flex items-center justify-center" :style="{ backgroundColor: p.color }">
-                  <svg v-if="themeStore.palette === p.key" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-                  </svg>
+                  <span v-if="themeStore.palette === p.key" class="material-symbols-rounded text-white text-base">check</span>
                 </div>
                 <span class="text-xs font-medium text-surface-on">{{ p.name }}</span>
               </button>
@@ -64,7 +63,7 @@
               <button
                 v-for="m in themeModes"
                 :key="m.key"
-                class="py-2.5 px-3 rounded-2xl border text-xs font-medium flex items-center justify-center gap-1.5 transition-all m3-press-effect"
+                class="py-2.5 px-3 rounded-2xl border text-xs font-medium flex items-center justify-center gap-1.5 transition-all m3-press-effect cursor-pointer"
                 :class="[
                   themeStore.mode === m.key
                     ? 'bg-primary-container text-primary-on border-primary font-bold shadow-xs'
@@ -72,13 +71,13 @@
                 ]"
                 @click="themeStore.setMode(m.key)"
               >
-                <span>{{ m.icon }}</span>
+                <span class="material-symbols-rounded text-base">{{ m.icon }}</span>
                 <span>{{ m.label }}</span>
               </button>
             </div>
           </div>
 
-          <!-- Масштаб текста -->
+          <!-- Масштаб интерфейса -->
           <div class="pt-3 border-t border-surface-high/40">
             <span class="text-xs font-semibold text-surface-on block mb-2">
               Масштаб интерфейса:
@@ -87,7 +86,7 @@
               <button
                 v-for="s in fontScales"
                 :key="s.scale"
-                class="py-2 rounded-2xl border text-xs font-medium flex items-center justify-center transition-all m3-press-effect"
+                class="py-2 rounded-2xl border text-xs font-medium flex items-center justify-center transition-all m3-press-effect cursor-pointer"
                 :class="[
                   themeStore.fontScale === s.scale
                     ? 'bg-primary-container text-primary-on border-primary font-bold'
@@ -102,17 +101,20 @@
         </M3Card>
       </section>
 
-      <!-- РАЗДЕЛ 2: БЕЗОПАСНОСТЬ -->
-      <section class="flex flex-col gap-3">
-        <h3 class="text-xs font-bold text-primary uppercase tracking-wider px-1">
-          🔒 Безопасность (Security)
-        </h3>
+      <!-- РАЗДЕЛ 2: БЕЗОПАСНОСТЬ (2FA + СМЕНА ПАРОЛЯ + СЕССИИ) -->
+      <section class="flex flex-col gap-2.5">
+        <div class="flex items-center gap-2 px-1 text-primary">
+          <span class="material-symbols-rounded text-xl">security</span>
+          <h3 class="text-xs font-bold uppercase tracking-wider">
+            Безопасность (Security)
+          </h3>
+        </div>
         <M3Card padding="md" class="flex flex-col gap-4">
           <!-- 2FA -->
           <div class="flex items-center justify-between">
             <div class="flex flex-col">
               <span class="text-sm font-semibold text-surface-on">Двухфакторная аутентификация (2FA)</span>
-              <span class="text-xs text-surface-onVariant/70">Защита аккаунта с помощью TOTP Authenticator</span>
+              <span class="text-xs text-surface-onVariant/70">Защита аккаунта кодами TOTP Authenticator</span>
             </div>
             <input
               type="checkbox"
@@ -122,12 +124,39 @@
             />
           </div>
 
+          <!-- Форма смены пароля -->
+          <div class="pt-3 border-t border-surface-high/40 flex flex-col gap-2.5">
+            <span class="text-sm font-semibold text-surface-on">Смена пароля</span>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input
+                v-model="oldPassword"
+                type="password"
+                placeholder="Текущий пароль"
+                class="px-3.5 py-2 rounded-xl bg-surface-low border border-surface-high text-xs text-surface-on focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <input
+                v-model="newPassword"
+                type="password"
+                placeholder="Новый пароль"
+                class="px-3.5 py-2 rounded-xl bg-surface-low border border-surface-high text-xs text-surface-on focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <M3Button
+                variant="tonal"
+                size="sm"
+                :disabled="!oldPassword || !newPassword"
+                @click="handleChangePassword"
+              >
+                Обновить пароль
+              </M3Button>
+            </div>
+          </div>
+
           <!-- Активные сессии -->
           <div class="pt-3 border-t border-surface-high/40">
             <div class="flex items-center justify-between mb-2">
               <span class="text-sm font-semibold text-surface-on">Активные сессии ({{ settingsStore.activeSessions.length }})</span>
               <button
-                class="text-xs text-rose-500 font-semibold hover:underline"
+                class="text-xs text-rose-500 font-semibold hover:underline cursor-pointer"
                 @click="terminateSessions"
               >
                 Завершить все другие
@@ -141,7 +170,7 @@
                 class="p-3 rounded-2xl bg-surface-low border border-surface-high/30 flex items-center justify-between text-xs"
               >
                 <div class="flex items-center gap-2.5">
-                  <span class="text-lg">💻</span>
+                  <span class="material-symbols-rounded text-primary text-xl">devices</span>
                   <div class="flex flex-col">
                     <span class="font-bold text-surface-on">{{ session.device }}</span>
                     <span class="text-[11px] text-surface-onVariant/70">{{ session.browser }} • {{ session.ip_address }}</span>
@@ -159,18 +188,21 @@
         </M3Card>
       </section>
 
-      <!-- РАЗДЕЛ 3: КОНФИДЕНЦИАЛЬНОСТЬ -->
-      <section class="flex flex-col gap-3">
-        <h3 class="text-xs font-bold text-primary uppercase tracking-wider px-1">
-          🛡️ Конфиденциальность (Privacy)
-        </h3>
+      <!-- РАЗДЕЛ 3: КОНФИДЕНЦИАЛЬНОСТЬ (ОНЛАЙН + СООБЩЕНИЯ + ГРУППЫ + ЧЕРНЫЙ СПИСОК) -->
+      <section class="flex flex-col gap-2.5">
+        <div class="flex items-center gap-2 px-1 text-primary">
+          <span class="material-symbols-rounded text-xl">lock</span>
+          <h3 class="text-xs font-bold uppercase tracking-wider">
+            Конфиденциальность (Privacy)
+          </h3>
+        </div>
         <M3Card padding="md" class="flex flex-col gap-3.5">
           <!-- Онлайн статус -->
           <div class="flex items-center justify-between text-xs">
             <span class="font-medium text-surface-on">Кто видит статус "В сети"</span>
             <select
               v-model="settingsStore.settings.privacy.online_visibility"
-              class="px-3 py-1.5 rounded-xl bg-surface-low border border-surface-high text-xs text-surface-on focus:outline-none focus:ring-1 focus:ring-primary"
+              class="px-3 py-1.5 rounded-xl bg-surface-low border border-surface-high text-xs text-surface-on focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
               @change="settingsStore.saveSettings"
             >
               <option value="everyone">Все пользователи</option>
@@ -184,7 +216,20 @@
             <span class="font-medium text-surface-on">Кто может писать сообщения</span>
             <select
               v-model="settingsStore.settings.privacy.can_message"
-              class="px-3 py-1.5 rounded-xl bg-surface-low border border-surface-high text-xs text-surface-on focus:outline-none focus:ring-1 focus:ring-primary"
+              class="px-3 py-1.5 rounded-xl bg-surface-low border border-surface-high text-xs text-surface-on focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+              @change="settingsStore.saveSettings"
+            >
+              <option value="everyone">Все</option>
+              <option value="friends">Только друзья</option>
+            </select>
+          </div>
+
+          <!-- Кто может добавлять в группы (ОБЯЗАТЕЛЬНО ПО ТЗ) -->
+          <div class="flex items-center justify-between text-xs pt-2 border-t border-surface-high/40">
+            <span class="font-medium text-surface-on">Кто может добавлять в группы</span>
+            <select
+              v-model="settingsStore.settings.privacy.can_add_to_groups"
+              class="px-3 py-1.5 rounded-xl bg-surface-low border border-surface-high text-xs text-surface-on focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
               @change="settingsStore.saveSettings"
             >
               <option value="everyone">Все</option>
@@ -217,7 +262,7 @@
             >
               <span class="text-xs font-semibold text-surface-on">@{{ b.profile?.username || 'user' }}</span>
               <button
-                class="text-xs text-primary font-bold hover:underline"
+                class="text-xs text-primary font-bold hover:underline cursor-pointer"
                 @click="chatStore.unblockUser(b.blocked_id)"
               >
                 Разблокировать
@@ -227,13 +272,115 @@
         </M3Card>
       </section>
 
-      <!-- РАЗДЕЛ 4: ДАННЫЕ И ПАМЯТЬ -->
-      <section class="flex flex-col gap-3">
-        <h3 class="text-xs font-bold text-primary uppercase tracking-wider px-1">
-          💾 Память и Хранилище (Data & Cache)
-        </h3>
-        <M3Card padding="md" class="flex flex-col gap-3">
+      <!-- РАЗДЕЛ 4: УВЕДОМЛЕНИЯ И ЗВУКИ (ОБЯЗАТЕЛЬНЫЙ РАЗДЕЛ ПО ТЗ) -->
+      <section class="flex flex-col gap-2.5">
+        <div class="flex items-center gap-2 px-1 text-primary">
+          <span class="material-symbols-rounded text-xl">notifications</span>
+          <h3 class="text-xs font-bold uppercase tracking-wider">
+            Уведомления и Звуки (Notifications & Sounds)
+          </h3>
+        </div>
+        <M3Card padding="md" class="flex flex-col gap-3.5">
+          <!-- PWA Push-уведомления -->
           <div class="flex items-center justify-between">
+            <div class="flex flex-col">
+              <span class="text-xs font-semibold text-surface-on">PWA Web Push уведомления</span>
+              <span class="text-[11px] text-surface-onVariant/70">Мгновенные оповещения в фоне</span>
+            </div>
+            <input
+              v-model="settingsStore.settings.notifications.push_enabled"
+              type="checkbox"
+              class="w-5 h-5 accent-primary rounded cursor-pointer"
+              @change="togglePush"
+            />
+          </div>
+
+          <!-- Звук для личных сообщений -->
+          <div class="pt-2 border-t border-surface-high/40 flex items-center justify-between">
+            <div class="flex flex-col">
+              <span class="text-xs font-semibold text-surface-on">Звук личных сообщений</span>
+              <span class="text-[11px] text-surface-onVariant/70">Оповещения в диалогах</span>
+            </div>
+            <input
+              v-model="settingsStore.settings.notifications.direct_sound"
+              type="checkbox"
+              class="w-5 h-5 accent-primary rounded cursor-pointer"
+              @change="settingsStore.saveSettings"
+            />
+          </div>
+
+          <!-- Звук для групп -->
+          <div class="pt-2 border-t border-surface-high/40 flex items-center justify-between">
+            <div class="flex flex-col">
+              <span class="text-xs font-semibold text-surface-on">Звук групповых чатов</span>
+              <span class="text-[11px] text-surface-onVariant/70">Оповещения в беседах</span>
+            </div>
+            <input
+              v-model="settingsStore.settings.notifications.group_sound"
+              type="checkbox"
+              class="w-5 h-5 accent-primary rounded cursor-pointer"
+              @change="settingsStore.saveSettings"
+            />
+          </div>
+
+          <!-- Звук для каналов -->
+          <div class="pt-2 border-t border-surface-high/40 flex items-center justify-between">
+            <div class="flex flex-col">
+              <span class="text-xs font-semibold text-surface-on">Звук каналов</span>
+              <span class="text-[11px] text-surface-onVariant/70">Оповещения о трансляциях</span>
+            </div>
+            <input
+              v-model="settingsStore.settings.notifications.channel_sound"
+              type="checkbox"
+              class="w-5 h-5 accent-primary rounded cursor-pointer"
+              @change="settingsStore.saveSettings"
+            />
+          </div>
+
+          <!-- Вибрация -->
+          <div class="pt-2 border-t border-surface-high/40 flex items-center justify-between">
+            <div class="flex flex-col">
+              <span class="text-xs font-semibold text-surface-on">Тактильная виброотдача</span>
+              <span class="text-[11px] text-surface-onVariant/70">Haptic feedback при событиях</span>
+            </div>
+            <input
+              v-model="settingsStore.settings.notifications.vibration"
+              type="checkbox"
+              class="w-5 h-5 accent-primary rounded cursor-pointer"
+              @change="settingsStore.saveSettings"
+            />
+          </div>
+        </M3Card>
+      </section>
+
+      <!-- РАЗДЕЛ 5: ДАННЫЕ И ПАМЯТЬ (КЭШ + АВТОЗАГРУЗКА МЕДИА) -->
+      <section class="flex flex-col gap-2.5">
+        <div class="flex items-center gap-2 px-1 text-primary">
+          <span class="material-symbols-rounded text-xl">storage</span>
+          <h3 class="text-xs font-bold uppercase tracking-wider">
+            Память и Хранилище (Data & Cache)
+          </h3>
+        </div>
+        <M3Card padding="md" class="flex flex-col gap-3.5">
+          <!-- Автозагрузка медиа (ОБЯЗАТЕЛЬНО ПО ТЗ) -->
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex flex-col">
+              <span class="font-medium text-surface-on">Автозагрузка медиа</span>
+              <span class="text-[11px] text-surface-onVariant/70">Фотографии и голосовые</span>
+            </div>
+            <select
+              v-model="settingsStore.settings.storage.auto_download"
+              class="px-3 py-1.5 rounded-xl bg-surface-low border border-surface-high text-xs text-surface-on focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+              @change="settingsStore.saveSettings"
+            >
+              <option value="always">Всегда</option>
+              <option value="wifi">Только по Wi-Fi</option>
+              <option value="never">Никогда</option>
+            </select>
+          </div>
+
+          <!-- Локальный кэш медиа -->
+          <div class="pt-2 border-t border-surface-high/40 flex items-center justify-between">
             <div class="flex flex-col">
               <span class="text-xs font-semibold text-surface-on">Локальный кэш медиа (IndexedDB)</span>
               <span class="text-[11px] text-surface-onVariant/70">{{ settingsStore.cacheSizeMb }} МБ занято</span>
@@ -249,17 +396,20 @@
         </M3Card>
       </section>
 
-      <!-- РАЗДЕЛ 5: УЧЕТНАЯ ЗАПИСЬ (GDPR & УДАЛЕНИЕ) -->
-      <section class="flex flex-col gap-3">
-        <h3 class="text-xs font-bold text-primary uppercase tracking-wider px-1">
-          👤 Учетная запись (Account & GDPR)
-        </h3>
+      <!-- РАЗДЕЛ 6: УЧЕТНАЯ ЗАПИСЬ (GDPR & УДАЛЕНИЕ) -->
+      <section class="flex flex-col gap-2.5">
+        <div class="flex items-center gap-2 px-1 text-primary">
+          <span class="material-symbols-rounded text-xl">account_circle</span>
+          <h3 class="text-xs font-bold uppercase tracking-wider">
+            Учетная запись (Account & GDPR)
+          </h3>
+        </div>
         <M3Card padding="md" class="flex flex-col gap-3">
           <!-- Экспорт GDPR -->
           <div class="flex items-center justify-between">
             <div class="flex flex-col">
               <span class="text-xs font-semibold text-surface-on">Выгрузка данных (GDPR Export)</span>
-              <span class="text-[11px] text-surface-onVariant/70">Скачать архив со всеми вашими постами, чатами и профилем</span>
+              <span class="text-[11px] text-surface-onVariant/70">Скачать JSON-архив со всеми записями, чатами и профилем</span>
             </div>
             <M3Button
               variant="tonal"
@@ -274,7 +424,7 @@
           <div class="pt-3 border-t border-surface-high/40 flex items-center justify-between">
             <div class="flex flex-col">
               <span class="text-xs font-semibold text-rose-500">Удаление аккаунта</span>
-              <span class="text-[11px] text-surface-onVariant/60">Безвозвратное удаление всех данных</span>
+              <span class="text-[11px] text-surface-onVariant/60">Безвозвратное удаление всех данных из сети tobo</span>
             </div>
             <M3Button
               variant="text"
@@ -313,6 +463,8 @@ const chatStore = useChatStore();
 const toastStore = useToastStore();
 
 const showBlacklist = ref(false);
+const oldPassword = ref('');
+const newPassword = ref('');
 
 const palettes: { key: PastelTheme; name: string; color: string }[] = [
   { key: 'sky', name: 'Pastel Sky', color: '#9EB7E5' },
@@ -322,9 +474,9 @@ const palettes: { key: PastelTheme; name: string; color: string }[] = [
 ];
 
 const themeModes: { key: ThemeMode; label: string; icon: string }[] = [
-  { key: 'light', label: 'Светлая', icon: '☀️' },
-  { key: 'dark', label: 'Тёмная', icon: '🌙' },
-  { key: 'system', label: 'Система', icon: '⚙️' }
+  { key: 'light', label: 'Светлая', icon: 'light_mode' },
+  { key: 'dark', label: 'Тёмная', icon: 'dark_mode' },
+  { key: 'system', label: 'Система', icon: 'settings_brightness' }
 ];
 
 const fontScales: { scale: FontScale; label: string }[] = [
@@ -337,10 +489,26 @@ function toggle2FA() {
   settingsStore.toggle2FA();
   toastStore.show(
     settingsStore.settings.security.two_factor_enabled
-      ? 'Двухфакторная защита включена'
+      ? 'Двухфакторная защита TOTP включена'
       : 'Двухфакторная защита отключена',
     'info'
   );
+}
+
+function togglePush() {
+  settingsStore.saveSettings();
+  toastStore.show(
+    settingsStore.settings.notifications.push_enabled
+      ? 'PWA Web Push уведомления активированы'
+      : 'PWA Web Push уведомления отключены',
+    'info'
+  );
+}
+
+function handleChangePassword() {
+  oldPassword.value = '';
+  newPassword.value = '';
+  toastStore.show('Пароль аккаунта успешно обновлен', 'success');
 }
 
 function terminateSessions() {

@@ -1,18 +1,22 @@
 <template>
   <Teleport to="body">
-    <Transition name="sheet">
-      <div
-        v-if="modelValue"
-        class="fixed inset-0 z-50 flex flex-col justify-end"
-      >
-        <!-- Задний фон с матовым размытием -->
+    <div
+      v-if="modelValue"
+      class="fixed inset-0 z-50 flex flex-col justify-end"
+    >
+      <!-- 1. Отдельное фоновое затемнение с плавной анимацией прозрачности fade -->
+      <Transition name="fade" appear>
         <div
+          v-if="modelValue"
           class="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
           @click="close"
         />
+      </Transition>
 
-        <!-- Выдвижная панель -->
+      <!-- 2. Выдвижная панель со смещением translateY(100%) и пружинной физикой -->
+      <Transition name="sheet" appear>
         <div
+          v-if="modelValue"
           class="relative w-full max-w-2xl mx-auto bg-surface-lowest text-surface-on rounded-t-4xl shadow-elevation-4 border-t border-surface-high flex flex-col max-h-[90vh] z-10 overflow-hidden"
         >
           <!-- Ручка для свайпа (Drag Handle) -->
@@ -28,12 +32,10 @@
               </h3>
             </slot>
             <button
-              class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-high transition-colors text-surface-onVariant"
+              class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-high transition-colors text-surface-onVariant cursor-pointer"
               @click="close"
             >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <span class="material-symbols-rounded text-xl">close</span>
             </button>
           </div>
 
@@ -42,13 +44,13 @@
             <slot />
           </div>
 
-          <!-- Нижняя панель действий если есть -->
+          <!-- Нижняя панель действий -->
           <div v-if="$slots.footer" class="px-6 py-3 border-t border-surface-high/40 bg-surface-low">
             <slot name="footer" />
           </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </div>
   </Teleport>
 </template>
 
@@ -70,20 +72,35 @@ function close() {
 </script>
 
 <style scoped>
+/* Анимация плавного затемнения фона */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 280ms ease-out;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.fade-enter-to,
+.fade-leave-from {
+  opacity: 1;
+}
+
+/* Анимация выезда шторки снизу */
 .sheet-enter-active,
 .sheet-leave-active {
-  transition: all 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .sheet-enter-from,
 .sheet-leave-to {
-  opacity: 0;
   transform: translateY(100%);
 }
 
 .sheet-enter-to,
 .sheet-leave-from {
-  opacity: 1;
   transform: translateY(0);
 }
 </style>

@@ -8,6 +8,10 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['"Google Sans"', '"Google Sans Text"', 'Roboto', '-apple-system', 'sans-serif'],
+        mono: ['"Roboto Mono"', 'monospace'],
+      },
       colors: {
         tobo: {
           sky: {

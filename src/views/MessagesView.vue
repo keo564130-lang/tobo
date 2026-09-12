@@ -20,21 +20,19 @@
             placeholder="Поиск диалогов..."
             class="w-full pl-8 pr-3 py-1.5 rounded-full bg-surface-low border border-surface-high/60 text-xs text-surface-on focus:outline-none focus:ring-2 focus:ring-primary"
           />
-          <svg class="w-3.5 h-3.5 absolute left-2.5 top-2 text-surface-onVariant/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <span class="material-symbols-rounded text-sm absolute left-2.5 top-2 text-surface-onVariant/60">
+            search
+          </span>
         </div>
       </template>
 
       <template #trailing>
         <!-- Кнопка поиска на мобильных -->
         <button
-          class="sm:hidden w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect"
+          class="sm:hidden w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect cursor-pointer"
           @click="showMobileSearch = !showMobileSearch"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <span class="material-symbols-rounded text-xl">search</span>
         </button>
 
         <!-- Меню "+" (Создать диалог, группу, канал) -->
@@ -44,9 +42,7 @@
             size="sm"
             @click="showCreateMenu = !showCreateMenu"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
-            </svg>
+            <span class="material-symbols-rounded text-lg">add</span>
           </M3Button>
 
           <!-- Выпадающее меню типов диалога -->
@@ -55,30 +51,24 @@
             class="absolute right-0 top-11 w-56 rounded-3xl bg-surface-lowest shadow-elevation-3 border border-surface-high p-1.5 z-50 flex flex-col gap-1 text-xs font-medium text-surface-on"
           >
             <button
-              class="w-full text-left px-3.5 py-2.5 rounded-2xl hover:bg-surface-high flex items-center gap-2.5 transition-colors"
+              class="w-full text-left px-3.5 py-2.5 rounded-2xl hover:bg-surface-high flex items-center gap-2.5 transition-colors cursor-pointer"
               @click="openCreate('direct')"
             >
-              <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
+              <span class="material-symbols-rounded text-lg text-primary">person</span>
               <span>Создать личный диалог</span>
             </button>
             <button
-              class="w-full text-left px-3.5 py-2.5 rounded-2xl hover:bg-surface-high flex items-center gap-2.5 transition-colors"
+              class="w-full text-left px-3.5 py-2.5 rounded-2xl hover:bg-surface-high flex items-center gap-2.5 transition-colors cursor-pointer"
               @click="openCreate('group')"
             >
-              <svg class="w-4 h-4 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
+              <span class="material-symbols-rounded text-lg text-secondary">group</span>
               <span>Создать группу</span>
             </button>
             <button
-              class="w-full text-left px-3.5 py-2.5 rounded-2xl hover:bg-surface-high flex items-center gap-2.5 transition-colors"
+              class="w-full text-left px-3.5 py-2.5 rounded-2xl hover:bg-surface-high flex items-center gap-2.5 transition-colors cursor-pointer"
               @click="openCreate('channel')"
             >
-              <svg class="w-4 h-4 text-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-              </svg>
+              <span class="material-symbols-rounded text-lg text-tertiary">campaign</span>
               <span>Создать канал</span>
             </button>
           </div>
@@ -101,7 +91,7 @@
       <button
         v-for="filter in filterOptions"
         :key="filter.key"
-        class="px-4 py-1.5 rounded-full text-xs font-medium transition-all m3-press-effect shrink-0 select-none"
+        class="px-4 py-1.5 rounded-full text-xs font-medium transition-all m3-press-effect shrink-0 select-none cursor-pointer"
         :class="[
           activeFilter === filter.key
             ? 'bg-primary text-primary-on font-semibold shadow-xs'
@@ -130,24 +120,24 @@
             :is-online="chat.type === 'direct'"
             :show-online="chat.type === 'direct'"
           />
-          <!-- Иконка типа (сохраненные, канал, группа) -->
+          <!-- Иконка типа -->
           <div
             v-if="chat.type === 'saved'"
-            class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-secondary-container text-secondary-on flex items-center justify-center shadow-xs text-[10px]"
+            class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-secondary-container text-secondary-on flex items-center justify-center shadow-xs"
           >
-            🔖
+            <span class="material-symbols-rounded text-xs">bookmark</span>
           </div>
           <div
             v-else-if="chat.type === 'channel'"
-            class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-primary-container text-primary-on flex items-center justify-center shadow-xs text-[10px]"
+            class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-primary-container text-primary-on flex items-center justify-center shadow-xs"
           >
-            📢
+            <span class="material-symbols-rounded text-xs">campaign</span>
           </div>
           <div
             v-else-if="chat.type === 'group'"
-            class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-tertiary-container text-tertiary-on flex items-center justify-center shadow-xs text-[10px]"
+            class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-tertiary-container text-tertiary-on flex items-center justify-center shadow-xs"
           >
-            👥
+            <span class="material-symbols-rounded text-xs">group</span>
           </div>
         </div>
 
@@ -175,11 +165,13 @@
           <!-- Превью последнего сообщения -->
           <div class="flex items-center justify-between gap-2">
             <p class="text-xs text-surface-onVariant/80 truncate leading-relaxed">
-              <span v-if="chat.last_message?.voice_wave || chat.last_message?.voice_url" class="text-primary font-medium">
-                🎤 Голосовое сообщение ({{ chat.last_message.voice_duration || 5 }} с)
+              <span v-if="chat.last_message?.voice_wave || chat.last_message?.voice_url" class="text-primary font-medium flex items-center gap-1">
+                <span class="material-symbols-rounded text-xs">mic</span>
+                <span>Голосовое сообщение ({{ chat.last_message.voice_duration || 5 }} с)</span>
               </span>
-              <span v-else-if="chat.last_message?.forwarded_post_id" class="text-secondary font-medium">
-                🔖 Сохранённый пост из Ленты
+              <span v-else-if="chat.last_message?.forwarded_post_id" class="text-secondary font-medium flex items-center gap-1">
+                <span class="material-symbols-rounded text-xs">bookmark</span>
+                <span>Сохранённый пост из Ленты</span>
               </span>
               <span v-else>
                 {{ chat.last_message?.content || 'Нет сообщений' }}
@@ -189,7 +181,7 @@
             <!-- Счетчик непрочитанных -->
             <span
               v-if="chat.unread_count && chat.unread_count > 0"
-              class="px-2 py-0.5 rounded-full bg-primary text-primary-on font-bold text-[10px] shrink-0 shadow-xs"
+              class="px-2 py-0.5 rounded-full bg-primary text-primary-on font-bold text-[10px] shrink-0 shadow-xs font-mono"
             >
               {{ chat.unread_count }}
             </span>

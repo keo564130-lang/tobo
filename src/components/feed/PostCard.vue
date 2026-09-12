@@ -16,9 +16,10 @@
             <!-- Бейдж верификации команды tobo -->
             <span
               v-if="post.author?.username === 'tobo_team'"
-              class="px-1.5 py-0.2 rounded-full bg-primary/20 text-primary text-[10px] font-bold"
+              class="px-1.5 py-0.2 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center gap-0.5"
             >
-              official
+              <span class="material-symbols-rounded text-xs">verified</span>
+              <span>official</span>
             </span>
           </div>
           <div class="flex items-center gap-1.5 text-xs text-surface-onVariant/60">
@@ -29,15 +30,13 @@
         </div>
       </div>
 
-      <!-- Скоринг ранжирования ленты с затуханием во времени -->
+      <!-- Скоринг ранжирования ленты с затуханием во времени (Time Decay) -->
       <div
         v-if="post.rank_score !== undefined"
         class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-low text-xs text-surface-onVariant/80 font-mono font-medium"
         title="Алгоритмический рейтинг с Time Decay"
       >
-        <svg class="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-        </svg>
+        <span class="material-symbols-rounded text-primary text-sm">trending_up</span>
         <span>{{ post.rank_score }}</span>
       </div>
     </div>
@@ -47,18 +46,18 @@
       {{ post.content }}
     </div>
 
-    <!-- Медиа галерея (сетка) -->
+    <!-- Медиа галерея (сетка с надежным фолбэком для битых картинок) -->
     <div
-      v-if="post.media_urls && post.media_urls.length > 0"
+      v-if="validMediaUrls.length > 0"
       :class="[
         'mb-4 rounded-2xl overflow-hidden gap-1.5 grid',
-        post.media_urls.length === 1 ? 'grid-cols-1 max-h-96' : '',
-        post.media_urls.length === 2 ? 'grid-cols-2 max-h-72' : '',
-        post.media_urls.length >= 3 ? 'grid-cols-2 max-h-80' : ''
+        validMediaUrls.length === 1 ? 'grid-cols-1 max-h-96' : '',
+        validMediaUrls.length === 2 ? 'grid-cols-2 max-h-72' : '',
+        validMediaUrls.length >= 3 ? 'grid-cols-2 max-h-80' : ''
       ]"
     >
       <div
-        v-for="(url, idx) in post.media_urls.slice(0, 4)"
+        v-for="(url, idx) in validMediaUrls.slice(0, 4)"
         :key="idx"
         class="relative w-full h-full bg-surface-low overflow-hidden cursor-pointer group"
         @click="openMedia(url)"
@@ -68,47 +67,45 @@
           :alt="'Медиа ' + (idx + 1)"
           class="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
           loading="lazy"
+          @error="handleImageError(idx)"
         />
         <div
-          v-if="idx === 3 && post.media_urls.length > 4"
-          class="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xl font-bold backdrop-blur-xs"
+          v-if="idx === 3 && validMediaUrls.length > 4"
+          class="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xl font-bold backdrop-blur-xs font-mono"
         >
-          +{{ post.media_urls.length - 4 }}
+          +{{ validMediaUrls.length - 4 }}
         </div>
       </div>
     </div>
 
-    <!-- Панель интеракций (Likes, Comments, Repost, Bookmark) -->
+    <!-- Панель интеракций (Likes, Comments, Repost, Bookmark) с Material Symbols Rounded -->
     <div class="pt-2 border-t border-surface-high/40 flex items-center justify-between text-surface-onVariant/80 text-xs">
       <div class="flex items-center gap-1 sm:gap-2">
         <!-- Кнопка Лайка с пружинной M3 анимацией -->
         <button
-          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full transition-all m3-press-effect hover:bg-rose-50 dark:hover:bg-rose-950/30"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full transition-all m3-press-effect hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
           :class="post.is_liked ? 'text-rose-500 font-bold' : 'hover:text-rose-500'"
           @click="handleLike"
         >
-          <svg
-            class="w-4.5 h-4.5 transition-transform spring-transition"
-            :class="{ 'scale-125 text-rose-500 fill-rose-500': post.is_liked }"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+          <span
+            class="material-symbols-rounded text-lg transition-transform spring-transition"
+            :class="post.is_liked ? 'filled scale-120 text-rose-500' : ''"
           >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-          <span>{{ post.likes_count }}</span>
+            favorite
+          </span>
+          <span class="font-mono">{{ post.likes_count }}</span>
         </button>
 
         <!-- Кнопка Комментариев (M3 Bottom Sheet) -->
         <button
           v-if="!post.disable_comments"
-          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full transition-all m3-press-effect hover:bg-primary-container/40 hover:text-primary-onContainer"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full transition-all m3-press-effect hover:bg-primary-container/40 hover:text-primary-onContainer cursor-pointer"
           @click="$emit('open-comments', post)"
         >
-          <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-          <span>{{ post.comments_count }}</span>
+          <span class="material-symbols-rounded text-lg">
+            chat_bubble
+          </span>
+          <span class="font-mono">{{ post.comments_count }}</span>
         </button>
         <span v-else class="text-[11px] text-surface-onVariant/50 italic px-2">
           комментарии закрыты
@@ -116,43 +113,37 @@
 
         <!-- Кнопка Репоста -->
         <button
-          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full transition-all m3-press-effect hover:bg-tertiary-container/50 hover:text-tertiary-onContainer"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full transition-all m3-press-effect hover:bg-tertiary-container/50 hover:text-tertiary-onContainer cursor-pointer"
           :class="post.is_reposted ? 'text-emerald-600 font-bold dark:text-emerald-400' : ''"
           @click="handleRepost"
         >
-          <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          <span>{{ post.reposts_count }}</span>
+          <span class="material-symbols-rounded text-lg">
+            repeat
+          </span>
+          <span class="font-mono">{{ post.reposts_count }}</span>
         </button>
       </div>
 
       <div class="flex items-center gap-1">
-        <!-- Кнопка В Избранное (Автоматически отправляет в чат "Избранное" во 2-ю вкладку) -->
+        <!-- Кнопка В Избранное (Автоматически отправляет в чат "Избранное" во 2-й вкладке) -->
         <button
-          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full transition-all m3-press-effect hover:bg-secondary-container/50 hover:text-secondary-onContainer"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full transition-all m3-press-effect hover:bg-secondary-container/50 hover:text-secondary-onContainer cursor-pointer"
           :class="post.is_bookmarked ? 'text-purple-600 dark:text-purple-400 font-bold' : ''"
           title="Сохранить в Избранное (в чат во вкладке Сообщения)"
           @click="handleBookmark"
         >
-          <svg
-            class="w-4.5 h-4.5 transition-transform spring-transition"
-            :class="{ 'scale-115 text-purple-600 fill-purple-600 dark:text-purple-400 dark:fill-purple-400': post.is_bookmarked }"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+          <span
+            class="material-symbols-rounded text-lg transition-transform spring-transition"
+            :class="post.is_bookmarked ? 'filled scale-115 text-purple-600 dark:text-purple-400' : ''"
           >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-          </svg>
+            bookmark
+          </span>
           <span class="hidden sm:inline">{{ post.is_bookmarked ? 'В избранном' : 'В избранное' }}</span>
         </button>
 
         <!-- Просмотры -->
-        <div class="flex items-center gap-1 px-2 text-surface-onVariant/50">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-          </svg>
+        <div class="flex items-center gap-1 px-2 text-surface-onVariant/50 font-mono">
+          <span class="material-symbols-rounded text-base">visibility</span>
           <span>{{ post.views_count }}</span>
         </div>
       </div>
@@ -161,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import type { Post } from '@/types/database';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
 import { useFeedStore } from '@/stores/feed';
@@ -178,6 +169,17 @@ defineEmits<{
 const feedStore = useFeedStore();
 const toastStore = useToastStore();
 
+const brokenImagesIndices = ref<Set<number>>(new Set());
+
+const validMediaUrls = computed(() => {
+  if (!props.post.media_urls) return [];
+  return props.post.media_urls.filter((_, idx) => !brokenImagesIndices.value.has(idx));
+});
+
+function handleImageError(idx: number) {
+  brokenImagesIndices.value.add(idx);
+}
+
 const formattedDate = computed(() => {
   const date = new Date(props.post.created_at);
   const now = new Date();
@@ -193,8 +195,8 @@ const formattedDate = computed(() => {
   return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
 });
 
-function handleLike() {
-  const res = feedStore.toggleLike(props.post.id);
+async function handleLike() {
+  const res = await feedStore.toggleLike(props.post.id);
   if (res.isLiked) {
     toastStore.show('Вам понравился этот пост', 'info', 1500);
   }
