@@ -1,33 +1,46 @@
 <template>
   <M3BottomSheet
     :model-value="modelValue"
-    title="Информация о группе"
     @update:model-value="$emit('update:modelValue', $event)"
   >
-    <div v-if="chat" class="flex flex-col gap-5">
-      <!-- Шапка группы -->
-      <div class="flex items-center gap-4">
+    <!-- Шапка шторки: заголовок и кнопка "Назад" при добавлении -->
+    <template #header>
+      <div class="flex items-center gap-2">
+        <button
+          v-if="currentView === 'add'"
+          class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-high text-surface-onVariant cursor-pointer -ml-2"
+          @click="currentView = 'info'"
+        >
+          <span class="material-symbols-rounded text-xl">arrow_back</span>
+        </button>
+        <h3 class="text-base font-bold text-surface-on">
+          {{ currentView === 'info' ? 'Информация о группе' : 'Добавить участников' }}
+        </h3>
+      </div>
+    </template>
+
+    <!-- РЕЖИМ 1: Информация о группе -->
+    <div v-if="currentView === 'info'" class="flex flex-col gap-4">
+      <div class="flex flex-col items-center text-center">
         <M3Avatar
-          :src="chat.avatar_url"
-          :name="chat.title"
+          :src="chat?.avatar_url"
+          :name="chat?.title || 'Группа'"
           size="xl"
+          class="mb-3"
         />
-        <div class="flex flex-col">
-          <h3 class="text-xl font-bold text-surface-on">
-            {{ chat.title }}
-          </h3>
-          <span class="text-xs text-surface-onVariant/70 mt-0.5 font-medium">
-            {{ currentMembers.length }} участников ({{ onlineCount }} в сети)
-          </span>
-        </div>
+        <h3 class="text-lg font-bold text-surface-on">
+          {{ chat?.title }}
+        </h3>
+        <span class="text-xs text-surface-onVariant/70 mt-0.5 font-medium">
+          {{ currentMembers.length }} участников ({{ onlineCount }} в сети)
+        </span>
       </div>
 
-      <!-- Описание группы -->
-      <div v-if="chat.description" class="p-3.5 rounded-2xl bg-surface-low border border-surface-high/40 text-xs text-surface-on leading-relaxed">
+      <div v-if="chat?.description" class="p-3.5 rounded-2xl bg-surface-low border border-surface-high/40 text-xs text-surface-on leading-relaxed">
         {{ chat.description }}
       </div>
 
-      <!-- ВМЕСТО ОБЩИХ ГРУПП: ПОЛНЫЙ СПИСОК УЧАСТНИКОВ С РОЛЯМИ -->
+      <!-- Список участников -->
       <div class="flex flex-col gap-2">
         <div class="flex items-center justify-between px-1">
           <span class="text-xs font-bold uppercase tracking-wider text-surface-onVariant/80">
@@ -35,7 +48,7 @@
           </span>
           <button
             class="text-xs text-primary font-semibold hover:underline flex items-center gap-1 cursor-pointer"
-            @click="showAddMemberModal = true"
+            @click="currentView = 'add'"
           >
             <span class="material-symbols-rounded text-base">person_add</span>
             <span>Добавить</span>
@@ -49,13 +62,7 @@
             class="flex items-center justify-between p-2.5 rounded-2xl bg-surface-low hover:bg-surface-high/40 transition-colors"
           >
             <div class="flex items-center gap-2.5">
-              <M3Avatar
-                :src="member.profile?.avatar_url"
-                :name="member.profile?.first_name || 'Участник'"
-                size="sm"
-                :is-online="member.profile?.is_online"
-                show-online
-              />
+              <M3Avatar :src="member.profile?.avatar_url" :name="member.profile?.first_name || 'Участник'" size="sm" />
               <div class="flex flex-col">
                 <span class="text-xs font-bold text-surface-on">
                   {{ member.profile?.first_name }} {{ member.profile?.last_name || '' }}
@@ -66,7 +73,6 @@
               </div>
             </div>
 
-            <!-- Роль и управление -->
             <div class="flex items-center gap-2">
               <span
                 class="text-[10px] font-bold px-2.5 py-0.5 rounded-full"
@@ -79,7 +85,6 @@
                 {{ member.role === 'owner' ? 'Владелец' : (member.role === 'admin' ? 'Админ' : 'Участник') }}
               </span>
 
-              <!-- Кнопка удаления для админа -->
               <button
                 v-if="member.role !== 'owner'"
                 class="w-7 h-7 rounded-full flex items-center justify-center text-surface-onVariant hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
@@ -93,32 +98,17 @@
         </div>
       </div>
     </div>
-  </M3BottomSheet>
 
-  <!-- Модальное окно выбора контакта -->
-  <div
-    v-if="showAddMemberModal"
-    class="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
-    @click.self="showAddMemberModal = false"
-  >
-    <div class="w-full max-w-sm rounded-3xl bg-surface-lowest border border-surface-high p-4 shadow-elevation-3">
-      <div class="flex items-center justify-between mb-3">
-        <h4 class="text-sm font-bold text-surface-on">Добавить в группу</h4>
-        <button
-          class="w-7 h-7 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high cursor-pointer"
-          @click="showAddMemberModal = false"
-        >
-          <span class="material-symbols-rounded text-base">close</span>
-        </button>
+    <!-- РЕЖИМ 2: Выбор и добавление контакта (прямо в этой же шторке) -->
+    <div v-else class="flex flex-col gap-2 min-h-[220px]">
+      <div v-if="availableUsersToAdd.length === 0" class="py-12 text-center text-xs text-surface-onVariant">
+        Все доступные контакты уже добавлены в группу
       </div>
-      <div v-if="availableUsersToAdd.length === 0" class="py-4 text-center text-xs text-surface-onVariant">
-        Все доступные контакты уже добавлены
-      </div>
-      <div v-else class="flex flex-col gap-1.5 max-h-60 overflow-y-auto">
+      <div v-else class="flex flex-col gap-1.5 max-h-72 overflow-y-auto pr-1">
         <button
           v-for="user in availableUsersToAdd"
           :key="user.id"
-          class="flex items-center gap-3 p-2.5 rounded-2xl bg-surface-low hover:bg-surface-high transition-colors text-left cursor-pointer"
+          class="flex items-center gap-3 p-3 rounded-2xl bg-surface-low hover:bg-surface-high transition-colors text-left cursor-pointer m3-press-effect"
           @click="addMemberToGroup(user)"
         >
           <M3Avatar :src="user.avatar_url" :name="user.first_name" size="sm" />
@@ -126,11 +116,11 @@
             <span class="text-xs font-bold text-surface-on truncate">{{ user.first_name }} {{ user.last_name || '' }}</span>
             <span class="text-[10px] text-surface-onVariant/60 font-mono">@{{ user.username }}</span>
           </div>
-          <span class="material-symbols-rounded text-primary text-lg">add_circle</span>
+          <span class="material-symbols-rounded text-primary text-xl">add_circle</span>
         </button>
       </div>
     </div>
-  </div>
+  </M3BottomSheet>
 </template>
 
 <script setup lang="ts">
@@ -152,7 +142,9 @@ defineEmits<{
 
 const toastStore = useToastStore();
 
-const showAddMemberModal = ref(false);
+const currentView = ref<'info' | 'add'>('info');
+const currentMembers = ref<ChatMember[]>([]);
+
 const allMockUsers = [currentUserMock, mishaProfileMock, annaProfileMock, toboOfficialProfileMock];
 const availableUsersToAdd = computed(() => {
   const existingIds = new Set(currentMembers.value.map(m => m.user_id));
@@ -167,11 +159,14 @@ function addMemberToGroup(user: Profile) {
     joined_at: new Date().toISOString(),
     profile: user
   });
-  showAddMemberModal.value = false;
+  currentView.value = 'info';
   toastStore.show(`${user.first_name} добавлен(а) в группу`, 'success');
 }
 
-const currentMembers = ref<ChatMember[]>([]);
+// При закрытии/открытии возвращаем вид на 'info'
+watch(() => props.modelValue, (val) => {
+  if (val) currentView.value = 'info';
+});
 
 function initMembers() {
   if (props.chat?.id === 'chat-group-family-004') {

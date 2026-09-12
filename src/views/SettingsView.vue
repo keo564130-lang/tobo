@@ -215,54 +215,62 @@
             Конфиденциальность (Privacy)
           </h3>
         </div>
-        <M3Card padding="md" class="flex flex-col gap-3.5">
+        <M3Card padding="md" class="flex flex-col gap-4">
           <!-- Онлайн статус -->
-          <div class="flex items-center justify-between text-xs">
-            <label for="privacy_online_visibility" class="font-medium text-surface-on cursor-pointer">Кто видит статус "В сети"</label>
-            <select
-              id="privacy_online_visibility"
-              name="privacy_online_visibility"
-              aria-label="Кто видит статус 'В сети'"
-              v-model="settingsStore.settings.privacy.online_visibility"
-              class="px-3 py-1.5 rounded-xl bg-surface-low border border-surface-high text-xs text-surface-on focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-              @change="settingsStore.saveSettings"
-            >
-              <option value="everyone">Все пользователи</option>
-              <option value="friends">Только друзья</option>
-              <option value="nobody">Никто</option>
-            </select>
+          <div class="flex flex-col gap-2">
+            <span class="text-xs font-semibold text-surface-on">Кто видит статус "В сети"</span>
+            <div class="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-surface-low border border-surface-high/40">
+              <button
+                v-for="opt in onlineVisibilityOptions"
+                :key="opt.val"
+                type="button"
+                class="py-1.5 px-2 rounded-xl text-xs font-medium transition-all cursor-pointer text-center"
+                :class="settingsStore.settings.privacy.online_visibility === opt.val
+                  ? 'bg-primary-container text-primary-onContainer font-bold shadow-xs'
+                  : 'text-surface-onVariant hover:text-surface-on'"
+                @click="settingsStore.settings.privacy.online_visibility = opt.val; settingsStore.saveSettings()"
+              >
+                {{ opt.label }}
+              </button>
+            </div>
           </div>
 
           <!-- Кто может писать -->
-          <div class="flex items-center justify-between text-xs pt-2 border-t border-surface-high/40">
-            <label for="privacy_can_message" class="font-medium text-surface-on cursor-pointer">Кто может писать сообщения</label>
-            <select
-              id="privacy_can_message"
-              name="privacy_can_message"
-              aria-label="Кто может писать сообщения"
-              v-model="settingsStore.settings.privacy.can_message"
-              class="px-3 py-1.5 rounded-xl bg-surface-low border border-surface-high text-xs text-surface-on focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-              @change="settingsStore.saveSettings"
-            >
-              <option value="everyone">Все</option>
-              <option value="friends">Только друзья</option>
-            </select>
+          <div class="flex flex-col gap-2 pt-3 border-t border-surface-high/40">
+            <span class="text-xs font-semibold text-surface-on">Кто может писать сообщения</span>
+            <div class="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-surface-low border border-surface-high/40">
+              <button
+                v-for="opt in messagePrivacyOptions"
+                :key="opt.val"
+                type="button"
+                class="py-1.5 px-2 rounded-xl text-xs font-medium transition-all cursor-pointer text-center"
+                :class="settingsStore.settings.privacy.can_message === opt.val
+                  ? 'bg-primary-container text-primary-onContainer font-bold shadow-xs'
+                  : 'text-surface-onVariant hover:text-surface-on'"
+                @click="settingsStore.settings.privacy.can_message = opt.val; settingsStore.saveSettings()"
+              >
+                {{ opt.label }}
+              </button>
+            </div>
           </div>
 
-          <!-- Кто может добавлять в группы (ОБЯЗАТЕЛЬНО ПО ТЗ) -->
-          <div class="flex items-center justify-between text-xs pt-2 border-t border-surface-high/40">
-            <label for="privacy_can_add_to_groups" class="font-medium text-surface-on cursor-pointer">Кто может добавлять в группы</label>
-            <select
-              id="privacy_can_add_to_groups"
-              name="privacy_can_add_to_groups"
-              aria-label="Кто может добавлять в группы"
-              v-model="settingsStore.settings.privacy.can_add_to_groups"
-              class="px-3 py-1.5 rounded-xl bg-surface-low border border-surface-high text-xs text-surface-on focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-              @change="settingsStore.saveSettings"
-            >
-              <option value="everyone">Все</option>
-              <option value="friends">Только друзья</option>
-            </select>
+          <!-- Кто может добавлять в группы -->
+          <div class="flex flex-col gap-2 pt-3 border-t border-surface-high/40">
+            <span class="text-xs font-semibold text-surface-on">Кто может добавлять в группы</span>
+            <div class="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-surface-low border border-surface-high/40">
+              <button
+                v-for="opt in groupPrivacyOptions"
+                :key="opt.val"
+                type="button"
+                class="py-1.5 px-2 rounded-xl text-xs font-medium transition-all cursor-pointer text-center"
+                :class="settingsStore.settings.privacy.can_add_to_groups === opt.val
+                  ? 'bg-primary-container text-primary-onContainer font-bold shadow-xs'
+                  : 'text-surface-onVariant hover:text-surface-on'"
+                @click="settingsStore.settings.privacy.can_add_to_groups = opt.val; settingsStore.saveSettings()"
+              >
+                {{ opt.label }}
+              </button>
+            </div>
           </div>
 
           <!-- Черный список -->
@@ -549,6 +557,22 @@ const fontScales: { scale: FontScale; percent: string; label: string }[] = [
   { scale: '90', percent: '90%', label: 'Компактный' },
   { scale: '100', percent: '100%', label: 'Стандарт' },
   { scale: '115', percent: '115%', label: 'Крупный' }
+];
+
+const onlineVisibilityOptions: { val: 'everyone' | 'friends' | 'nobody'; label: string }[] = [
+  { val: 'everyone', label: 'Все' },
+  { val: 'friends', label: 'Друзья' },
+  { val: 'nobody', label: 'Никто' }
+];
+
+const messagePrivacyOptions: { val: 'everyone' | 'friends'; label: string }[] = [
+  { val: 'everyone', label: 'Все' },
+  { val: 'friends', label: 'Только друзья' }
+];
+
+const groupPrivacyOptions: { val: 'everyone' | 'friends'; label: string }[] = [
+  { val: 'everyone', label: 'Все' },
+  { val: 'friends', label: 'Только друзья' }
 ];
 
 function toggle2FA() {

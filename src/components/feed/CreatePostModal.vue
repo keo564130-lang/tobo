@@ -77,17 +77,23 @@
       <!-- Настройки поста (тумблер "Отключить комментарии") -->
       <div class="flex items-center justify-between p-3.5 rounded-2xl bg-surface-low border border-surface-high/40">
         <div class="flex flex-col">
-          <label for="disable_comments" class="text-xs font-semibold text-surface-on cursor-pointer">Отключить комментарии</label>
+          <span class="text-xs font-semibold text-surface-on">Отключить комментарии</span>
           <span class="text-[11px] text-surface-onVariant/70">Другие пользователи не смогут комментировать эту запись</span>
         </div>
-        <input
-          id="disable_comments"
-          name="disable_comments"
+        <button
+          type="button"
+          role="switch"
+          :aria-checked="disableComments"
           aria-label="Отключить комментарии"
-          v-model="disableComments"
-          type="checkbox"
-          class="w-5 h-5 accent-primary rounded cursor-pointer"
-        />
+          class="relative inline-flex w-12 h-6 rounded-full transition-colors duration-200 ease-in-out cursor-pointer p-0.5 shrink-0 focus:outline-none"
+          :class="disableComments ? 'bg-primary' : 'bg-surface-high'"
+          @click="disableComments = !disableComments"
+        >
+          <span
+            class="pointer-events-none inline-block w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-in-out"
+            :class="disableComments ? 'translate-x-6' : 'translate-x-0'"
+          />
+        </button>
       </div>
 
       <!-- Кнопка добавления фото и отправка -->
