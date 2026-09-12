@@ -135,6 +135,7 @@ import M3Avatar from '@/components/ui/M3Avatar.vue';
 import M3Button from '@/components/ui/M3Button.vue';
 import { useChatStore } from '@/stores/chat';
 import { useToastStore } from '@/stores/toast';
+import { familyAvatarSvg } from '@/lib/mockData';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -169,7 +170,7 @@ const mutualGroups = computed<Partial<Chat>[]>(() => {
     {
       id: 'chat-group-family-004',
       title: 'Семья',
-      avatar_url: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=300&auto=format&fit=crop&q=80',
+      avatar_url: familyAvatarSvg,
       members_count: 5
     }
   ];

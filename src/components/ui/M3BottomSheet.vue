@@ -17,7 +17,7 @@
       <Transition name="sheet" appear>
         <div
           v-if="modelValue"
-          class="relative w-full max-w-2xl mx-auto bg-surface-lowest text-surface-on rounded-t-4xl shadow-elevation-4 border-t border-surface-high flex flex-col max-h-[90vh] z-10 overflow-hidden"
+          class="relative w-full max-w-2xl mx-auto bg-surface-lowest text-surface-on rounded-t-4xl shadow-elevation-4 border-t border-surface-high flex flex-col max-h-[90vh] z-10 overflow-hidden -mb-32 pb-32"
         >
           <!-- Ручка для свайпа (Drag Handle) -->
           <div class="w-full flex items-center justify-center pt-3 pb-1 cursor-grab" @click="close">

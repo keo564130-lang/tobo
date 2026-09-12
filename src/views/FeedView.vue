@@ -42,15 +42,6 @@
 
     <!-- Список постов ленты -->
     <div class="flex flex-col gap-4">
-      <!-- Баннер алгоритма Time Decay -->
-      <div class="px-4 py-3 rounded-2xl bg-surface-lowest/70 border border-primary/20 backdrop-blur-sm flex items-center justify-between text-xs text-surface-onVariant">
-        <div class="flex items-center gap-2">
-          <span class="material-symbols-rounded text-primary text-base shrink-0">bolt</span>
-          <span>Лента ранжируется по вовлеченности с затуханием во времени (Time Decay)</span>
-        </div>
-        <span class="font-mono text-[10px] text-primary font-bold">M3 Expressive</span>
-      </div>
-
       <!-- Карточки постов -->
       <PostCard
         v-for="post in feedStore.posts"

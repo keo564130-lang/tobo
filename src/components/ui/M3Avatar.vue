@@ -69,9 +69,9 @@ const sizeClasses = computed(() => {
     case 'md':
       return 'w-10 h-10 text-sm';
     case 'lg':
-      return 'w-13 h-13 text-base';
+      return 'w-12 h-12 text-base';
     case 'xl':
-      return 'w-18 h-18 text-xl';
+      return 'w-16 h-16 text-xl';
     case '2xl':
       return 'w-24 h-24 text-2xl font-bold';
     default:
@@ -89,7 +89,7 @@ const badgeSizeClasses = computed(() => {
       return 'w-3.5 h-3.5';
     case 'xl':
     case '2xl':
-      return 'w-4.5 h-4.5';
+      return 'w-4 h-4';
     default:
       return 'w-3 h-3';
   }

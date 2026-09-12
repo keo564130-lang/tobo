@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen pb-28 pt-18 px-4 max-w-2xl mx-auto">
+  <div class="min-h-screen pb-28 pt-20 px-4 max-w-2xl mx-auto">
     <!-- Верхний плавающий островок профиля (Floating Top Bar Island) -->
     <FloatingTopBar>
       <template #leading>
