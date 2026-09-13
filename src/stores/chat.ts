@@ -4,7 +4,8 @@
 // ==============================================================================
 
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, shallowRef } from 'vue';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Chat, Message, ChatType, BlockedUser, Post, Profile, MessageComment } from '@/types/database';
 import { localStore, supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuthStore } from './auth';
@@ -16,6 +17,11 @@ export function isMockChatId(id: string): boolean {
     id.startsWith('chat-group-design') ||
     id.startsWith('chat-group-flood')
   );
+}
+
+export function isValidUUID(str?: string): boolean {
+  if (!str) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
 }
 
 function loadCachedChats(): Chat[] {
@@ -189,8 +195,181 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  const activeChatChannel = shallowRef<any>(null);
+
+  function unsubscribeFromActiveChat() {
+    if (activeChatChannel.value && supabase) {
+      try {
+        supabase.removeChannel(activeChatChannel.value);
+      } catch (e) {
+        console.warn('removeChannel error:', e);
+      }
+      activeChatChannel.value = null;
+    }
+  }
+
+  function subscribeToActiveChat(chatId: string) {
+    if (!chatId || !isSupabaseConfigured() || !supabase) return;
+
+    unsubscribeFromActiveChat();
+
+    const channel = supabase.channel(`chat_messages_${chatId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `chat_id=eq.${chatId}`
+        },
+        async (payload) => {
+          const newMsg = payload.new as any;
+          if (!newMsg || !newMsg.id) return;
+
+          if (!activeMessages.value.some(m => m.id === newMsg.id)) {
+            let sender = localStore.getProfile(newMsg.sender_id);
+            if (!sender && supabase) {
+              try {
+                const { data: pData } = await supabase
+                  .from('profiles')
+                  .select('*')
+                  .eq('id', newMsg.sender_id)
+                  .single();
+                if (pData) {
+                  sender = pData;
+                  localStore.saveProfile(pData);
+                }
+              } catch (e) {}
+            }
+
+            const formattedMsg: Message = {
+              ...newMsg,
+              sender: sender || undefined,
+              reactions: newMsg.reactions || {},
+              comments_count: newMsg.comments_count || 0
+            };
+
+            activeMessages.value.push(formattedMsg);
+
+            try {
+              localStorage.setItem('tobo_chat_msgs_' + chatId, JSON.stringify(activeMessages.value));
+            } catch {}
+
+            const targetChat = chats.value.find(c => c.id === chatId);
+            if (targetChat) {
+              targetChat.last_message = formattedMsg;
+              try {
+                localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+              } catch {}
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'messages',
+          filter: `chat_id=eq.${chatId}`
+        },
+        (payload) => {
+          const deletedId = (payload.old as any)?.id;
+          if (deletedId) {
+            activeMessages.value = activeMessages.value.filter(m => m.id !== deletedId);
+            try {
+              localStorage.setItem('tobo_chat_msgs_' + chatId, JSON.stringify(activeMessages.value));
+            } catch {}
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `chat_id=eq.${chatId}`
+        },
+        (payload) => {
+          const updated = payload.new as any;
+          if (!updated?.id) return;
+          const idx = activeMessages.value.findIndex(m => m.id === updated.id);
+          if (idx !== -1) {
+            activeMessages.value[idx] = {
+              ...activeMessages.value[idx],
+              ...updated,
+              sender: activeMessages.value[idx].sender || localStore.getProfile(updated.sender_id)
+            };
+            try {
+              localStorage.setItem('tobo_chat_msgs_' + chatId, JSON.stringify(activeMessages.value));
+            } catch {}
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`[Realtime] Subscribed to chat_messages_${chatId}`);
+        }
+      });
+
+    activeChatChannel.value = channel;
+  }
+
+  async function pollNewMessages(chatId: string) {
+    if (!chatId || !isSupabaseConfigured() || !supabase) return;
+    try {
+      let query = supabase
+        .from('messages')
+        .select('*, sender:profiles(*)')
+        .eq('chat_id', chatId)
+        .order('created_at', { ascending: true });
+
+      if (activeMessages.value.length > 0) {
+        const lastMsg = activeMessages.value[activeMessages.value.length - 1];
+        if (lastMsg?.created_at) {
+          query = query.gt('created_at', lastMsg.created_at);
+        }
+      }
+
+      const { data, error } = await query;
+      if (!error && data && data.length > 0) {
+        let hasNew = false;
+        for (const m of data) {
+          if (!activeMessages.value.some(existing => existing.id === m.id)) {
+            const formatted: Message = {
+              ...m,
+              reactions: m.reactions || {},
+              comments_count: m.comments_count || 0
+            };
+            activeMessages.value.push(formatted);
+            if (m.sender) {
+              localStore.saveProfile(m.sender);
+            }
+            hasNew = true;
+          }
+        }
+        if (hasNew) {
+          try {
+            localStorage.setItem('tobo_chat_msgs_' + chatId, JSON.stringify(activeMessages.value));
+          } catch {}
+          const targetChat = chats.value.find(c => c.id === chatId);
+          if (targetChat && activeMessages.value.length > 0) {
+            targetChat.last_message = activeMessages.value[activeMessages.value.length - 1];
+            try {
+              localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+            } catch {}
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('pollNewMessages error:', e);
+    }
+  }
+
   async function selectChat(chatId: string | null) {
     if (!chatId) {
+      unsubscribeFromActiveChat();
       activeChatId.value = null;
       activeMessages.value = [];
       return;
@@ -213,6 +392,7 @@ export const useChatStore = defineStore('chat', () => {
       } catch {}
     }
     if (currentChat && !checkChatAccess(currentChat)) {
+      unsubscribeFromActiveChat();
       activeMessages.value = [];
       activeChatId.value = null;
       console.warn(`[Security] Access denied: channel #${chatId} is private.`);
@@ -220,6 +400,7 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     activeChatId.value = chatId;
+    subscribeToActiveChat(chatId);
 
     // 1) СРАЗУ же загружаем кэшированные сообщения для 0-секундного ожидания
     try {
@@ -485,25 +666,81 @@ export const useChatStore = defineStore('chat', () => {
       } catch {}
     }
 
-    const title = `${targetUser.first_name || ''} ${targetUser.last_name || ''}`.trim() || targetUser.username || 'Диалог';
+    let targetId = targetUser.id;
+    let resolvedUser: Partial<Profile> = { ...targetUser };
 
-    // Ищем существующий прямой диалог с этим пользователем в кэше
-    const existing = chats.value.find(c => 
-      c.type === 'direct' && 
-      ((targetUser.id && c.members?.some(m => m.user_id === targetUser.id)) || 
-       c.title === title)
-    );
+    // Если targetId отсутствует или начинается с 'custom-', пробуем найти реального пользователя в profiles
+    if (isSupabaseConfigured() && supabase && (!targetId || targetId.startsWith('custom-') || !isValidUUID(targetId))) {
+      const qUsername = targetUser.username?.replace(/^@/, '').trim();
+      const qName = targetUser.first_name?.trim();
 
-    if (existing) {
-      await selectChat(existing.id);
-      return existing;
+      try {
+        let foundProfile: Profile | null = null;
+        if (qUsername) {
+          const { data } = await supabase
+            .from('profiles')
+            .select('*')
+            .ilike('username', qUsername)
+            .neq('id', currentUserId || '')
+            .limit(1);
+          if (data && data.length > 0) foundProfile = data[0];
+        }
+        if (!foundProfile && qName) {
+          const { data } = await supabase
+            .from('profiles')
+            .select('*')
+            .ilike('first_name', qName)
+            .neq('id', currentUserId || '')
+            .limit(1);
+          if (data && data.length > 0) foundProfile = data[0];
+        }
+        if (foundProfile) {
+          targetId = foundProfile.id;
+          resolvedUser = foundProfile;
+          localStore.saveProfile(foundProfile);
+        } else {
+          console.warn('[Chat] Target user not found in Supabase profiles');
+          return null;
+        }
+      } catch (err) {
+        console.warn('Error resolving target user in Supabase:', err);
+        return null;
+      }
     }
 
-    const avatarUrl = targetUser.avatar_url;
+    const title = `${resolvedUser.first_name || ''} ${resolvedUser.last_name || ''}`.trim() || resolvedUser.username || 'Диалог';
+    const avatarUrl = resolvedUser.avatar_url;
 
-    if (isSupabaseConfigured() && supabase && currentUserId) {
+    // В режиме Supabase: сначала проверяем, есть ли уже общий direct-чат между currentUserId и targetId
+    if (isSupabaseConfigured() && supabase && currentUserId && targetId && isValidUUID(targetId)) {
       try {
-        // 1) Вставляем запись в chats
+        const [myRes, targetRes] = await Promise.all([
+          supabase.from('chat_members').select('chat_id').eq('user_id', currentUserId),
+          supabase.from('chat_members').select('chat_id').eq('user_id', targetId)
+        ]);
+
+        if (myRes.data && targetRes.data) {
+          const myChatIds = new Set(myRes.data.map(m => m.chat_id));
+          const commonIds = targetRes.data.map(m => m.chat_id).filter(id => myChatIds.has(id));
+
+          if (commonIds.length > 0) {
+            const { data: existingChats } = await supabase
+              .from('chats')
+              .select('*, chat_members(*)')
+              .in('id', commonIds)
+              .eq('type', 'direct')
+              .limit(1);
+
+            if (existingChats && existingChats.length > 0) {
+              const foundChat = existingChats[0] as any;
+              await refreshChats();
+              await selectChat(foundChat.id);
+              return chats.value.find(c => c.id === foundChat.id) || foundChat;
+            }
+          }
+        }
+
+        // Если диалога еще нет — создаем новый
         const { data: chatData, error: chatError } = await supabase.from('chats').insert({
           type: 'direct',
           title,
@@ -512,30 +749,24 @@ export const useChatStore = defineStore('chat', () => {
         }).select().single();
 
         if (!chatError && chatData) {
-          // 2) Вставляем создателя в chat_members с role: 'owner'
-          const { error: ownerErr } = await supabase.from('chat_members').insert({
-            chat_id: chatData.id,
-            user_id: currentUserId,
-            role: 'owner'
-          });
-          if (ownerErr) {
-            console.warn('Supabase insert owner notice:', ownerErr);
+          // Вставляем создателя ('owner') и собеседника ('member')
+          const membersToInsert = [
+            { chat_id: chatData.id, user_id: currentUserId, role: 'owner' },
+            { chat_id: chatData.id, user_id: targetId, role: 'member' }
+          ];
+
+          const { error: membersErr } = await supabase.from('chat_members').insert(membersToInsert);
+          if (membersErr) {
+            console.warn('Supabase insert members error:', membersErr);
           }
 
-          // 3) Вторым запросом вставляем второго участника с role: 'member'
-          const targetId = targetUser.id;
-          if (targetId && targetId !== currentUserId) {
-            const { error: memberErr } = await supabase.from('chat_members').insert({
-              chat_id: chatData.id,
-              user_id: targetId,
-              role: 'member'
-            });
-            if (memberErr) {
-              console.warn('Supabase insert member notice:', memberErr);
-            }
-          }
+          await refreshChats();
+          await selectChat(chatData.id);
 
-          const createdChat: Chat = {
+          const found = chats.value.find(c => c.id === chatData.id);
+          if (found) return found;
+
+          return {
             id: chatData.id,
             type: 'direct',
             title,
@@ -543,52 +774,28 @@ export const useChatStore = defineStore('chat', () => {
             description: chatData.description,
             created_by: currentUserId,
             created_at: chatData.created_at || new Date().toISOString(),
-            members_count: targetId ? 2 : 1,
-            members: [
-              { chat_id: chatData.id, user_id: currentUserId, role: 'owner', joined_at: new Date().toISOString() },
-              ...(targetId ? [{ chat_id: chatData.id, user_id: targetId, role: 'member' as const, joined_at: new Date().toISOString() }] : [])
-            ],
+            members_count: 2,
             unread_count: 0
           };
-
-          // Сохраняем в localStore для оффлайн- и онлайн-доступа
-          localStore.saveChat(createdChat);
-
-          // 4) Немедленно добавляем в chats.value и кэш localStorage
-          const existingIdx = chats.value.findIndex(c => c.id === createdChat.id);
-          if (existingIdx === -1) {
-            chats.value.unshift(createdChat);
-          } else {
-            chats.value[existingIdx] = createdChat;
-          }
-
-          try {
-            localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
-          } catch {}
-
-          await selectChat(chatData.id);
-          await refreshChats();
-          return createdChat;
         }
       } catch (err) {
-        console.warn('Supabase createDirectChat failed, fallback to localStore:', err);
+        console.error('Supabase createDirectChat error:', err);
       }
     }
 
-    // Fallback: localStore
-    const newChat = localStore.createChat('direct', title, undefined, avatarUrl);
-    const existingIdx = chats.value.findIndex(c => c.id === newChat.id);
-    if (existingIdx === -1) {
+    // Офлайн режим (только если Supabase не сконфигурирован)
+    if (!isSupabaseConfigured()) {
+      const newChat = localStore.createChat('direct', title, undefined, avatarUrl);
       chats.value.unshift(newChat);
-    } else {
-      chats.value[existingIdx] = newChat;
+      try {
+        localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+      } catch {}
+      await selectChat(newChat.id);
+      await refreshChats();
+      return newChat;
     }
-    try {
-      localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
-    } catch {}
-    await selectChat(newChat.id);
-    await refreshChats();
-    return newChat;
+
+    return null;
   }
 
   async function createGroupChat(title: string, memberIds: string[] = [], description?: string, avatarUrl?: string): Promise<Chat | null> {
@@ -763,7 +970,7 @@ export const useChatStore = defineStore('chat', () => {
       ? { ...(target?.settings || {}), ...updates.settings }
       : target?.settings;
 
-    const fullUpdates = {
+    const fullUpdates: Record<string, any> = {
       ...updates,
       ...(updates.settings !== undefined ? { settings: mergedSettings } : {})
     };
@@ -772,7 +979,13 @@ export const useChatStore = defineStore('chat', () => {
       try {
         const { error } = await supabase.from('chats').update(fullUpdates).eq('id', chatId);
         if (error) {
-          console.warn('Supabase updateChat error:', error);
+          console.warn('Supabase updateChat error, retrying without settings:', error);
+          if (fullUpdates.settings) {
+            const { settings, ...withoutSettings } = fullUpdates;
+            if (Object.keys(withoutSettings).length > 0) {
+              await supabase.from('chats').update(withoutSettings).eq('id', chatId);
+            }
+          }
         }
       } catch (err) {
         console.warn('Supabase updateChat failed:', err);
@@ -942,20 +1155,32 @@ export const useChatStore = defineStore('chat', () => {
       try {
         const { error } = await supabase.from('messages').delete().eq('id', messageId);
         if (error) {
-          console.warn('Supabase deleteMessage error:', error);
-          return false;
+          console.warn('Supabase deleteMessage error, falling back to localStore:', error);
+          localStore.deleteMessage(chatId, messageId);
         }
       } catch (err) {
-        console.warn('Supabase deleteMessage error:', err);
-        return false;
+        console.warn('Supabase deleteMessage error, falling back to localStore:', err);
+        localStore.deleteMessage(chatId, messageId);
       }
     } else {
       localStore.deleteMessage(chatId, messageId);
     }
     activeMessages.value = activeMessages.value.filter(m => m.id !== messageId);
+
     try {
       localStorage.setItem('tobo_chat_msgs_' + chatId, JSON.stringify(activeMessages.value));
     } catch {}
+
+    const targetChat = chats.value.find(c => c.id === chatId);
+    if (targetChat && targetChat.last_message?.id === messageId) {
+      targetChat.last_message = activeMessages.value.length > 0
+        ? activeMessages.value[activeMessages.value.length - 1]
+        : undefined;
+      try {
+        localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+      } catch {}
+    }
+
     await refreshChats();
     return true;
   }
@@ -966,45 +1191,58 @@ export const useChatStore = defineStore('chat', () => {
     emoji: string
   ): Promise<Record<string, { count: number; users: string[] }>> {
     const userId = authStore.user?.id || 'user-me-001';
-    if (!isSupabaseConfigured() || !supabase) {
-      const reactions = localStore.toggleMessageReaction(chatId, messageId, emoji, userId);
-      const msg = activeMessages.value.find(m => m.id === messageId);
-      if (msg) {
-        msg.reactions = reactions;
-        try {
-          localStorage.setItem('tobo_chat_msgs_' + chatId, JSON.stringify(activeMessages.value));
-        } catch {}
+
+    let msg = activeMessages.value.find(m => m.id === messageId);
+    if (!msg) {
+      const localMsgs = localStore.getMessages(chatId);
+      msg = localMsgs.find(m => m.id === messageId);
+    }
+    if (!msg) return {};
+
+    const reactions: Record<string, { count: number; users: string[] }> = msg.reactions || {};
+    msg.reactions = reactions;
+
+    // 1. Проверяем, стояла ли уже у пользователя именно эта реакция emoji
+    const hadThisEmoji = Boolean(reactions[emoji]?.users.includes(userId));
+
+    // 2. Удаляем userId ИЗ ВСЕХ реакций данного сообщения (строго 1 реакция на пользователя)
+    Object.keys(reactions).forEach(key => {
+      const reaction = reactions[key];
+      if (reaction && reaction.users.includes(userId)) {
+        reaction.users = reaction.users.filter((u: string) => u !== userId);
+        reaction.count = reaction.users.length;
+        if (reaction.count <= 0) {
+          delete reactions[key];
+        }
       }
-      return reactions;
+    });
+
+    // 3. Если реакция не стояла — добавляем ее
+    if (!hadThisEmoji) {
+      if (!reactions[emoji]) {
+        reactions[emoji] = { count: 0, users: [] };
+      }
+      reactions[emoji].users.push(userId);
+      reactions[emoji].count = reactions[emoji].users.length;
     }
 
-    const msg = activeMessages.value.find(m => m.id === messageId);
-    if (!msg) return {};
-    if (!msg.reactions) msg.reactions = {};
-    const cur = msg.reactions[emoji] 
-      ? { count: msg.reactions[emoji].count, users: [...msg.reactions[emoji].users] } 
-      : { count: 0, users: [] };
-    const idx = cur.users.indexOf(userId);
-    if (idx > -1) {
-      cur.users.splice(idx, 1);
-      cur.count = Math.max(0, cur.count - 1);
-      if (cur.count === 0) {
-        delete msg.reactions[emoji];
-      } else {
-        msg.reactions[emoji] = cur;
-      }
-    } else {
-      cur.users.push(userId);
-      cur.count += 1;
-      msg.reactions[emoji] = cur;
-    }
+    const updatedReactions = { ...reactions };
+
+    localStore.toggleMessageReaction(chatId, messageId, emoji, userId);
+
     try {
       localStorage.setItem('tobo_chat_msgs_' + chatId, JSON.stringify(activeMessages.value));
-      await supabase.from('messages').update({ reactions: msg.reactions }).eq('id', messageId);
-    } catch (e) {
-      console.warn('toggleReaction error:', e);
+    } catch {}
+
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.from('messages').update({ reactions: updatedReactions }).eq('id', messageId);
+      } catch (e) {
+        console.warn('Supabase update reactions failed:', e);
+      }
     }
-    return { ...msg.reactions };
+
+    return updatedReactions;
   }
 
   async function loadChannelComments(messageId: string): Promise<MessageComment[]> {
@@ -1122,6 +1360,10 @@ export const useChatStore = defineStore('chat', () => {
     isPeerTyping,
     blockedUsers,
     channelCommentsMap,
+    activeChatChannel,
+    subscribeToActiveChat,
+    unsubscribeFromActiveChat,
+    pollNewMessages,
     refreshChats,
     selectChat,
     sendMessage,

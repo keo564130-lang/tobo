@@ -10,8 +10,12 @@
       </span>
     </button>
 
-    <!-- Пастельная звуковая волна -->
-    <div class="flex-1 flex items-center gap-0.5 h-7 cursor-pointer" @click="togglePlay">
+    <!-- Пастельная звуковая волна с интерактивной перемоткой -->
+    <div
+      class="flex-1 flex items-center gap-0.5 h-7 cursor-pointer"
+      title="Нажмите для перемотки"
+      @click.stop="seek"
+    >
       <div
         v-for="(bar, idx) in waveform"
         :key="idx"
@@ -39,6 +43,7 @@ import { ref, computed, onUnmounted } from 'vue';
 
 const props = withDefaults(
   defineProps<{
+    url?: string;
     duration?: number; // в секундах
     wave?: number[];
   }>(),
@@ -50,7 +55,13 @@ const props = withDefaults(
 
 const isPlaying = ref(false);
 const currentTime = ref(0);
+const realDuration = ref(props.duration);
+let audio: HTMLAudioElement | null = null;
 let intervalId: number | null = null;
+
+const effectiveDuration = computed(() => {
+  return realDuration.value > 0 ? realDuration.value : (props.duration || 5);
+});
 
 const waveform = computed(() => {
   return props.wave && props.wave.length > 0 ? props.wave : [0.3, 0.6, 0.8, 0.4, 0.7, 0.5];
@@ -58,16 +69,42 @@ const waveform = computed(() => {
 
 const activeBarIndex = computed(() => {
   if (!isPlaying.value && currentTime.value === 0) return -1;
-  const ratio = currentTime.value / Math.max(props.duration, 1);
+  const ratio = currentTime.value / Math.max(effectiveDuration.value, 1);
   return Math.floor(ratio * waveform.value.length);
 });
 
 const formattedTime = computed(() => {
-  const t = isPlaying.value ? Math.ceil(props.duration - currentTime.value) : props.duration;
+  const total = effectiveDuration.value;
+  const t = isPlaying.value ? Math.max(0, Math.ceil(total - currentTime.value)) : total;
   const m = Math.floor(t / 60);
-  const s = t % 60;
+  const s = Math.floor(t % 60);
   return `${m}:${s < 10 ? '0' : ''}${s}`;
 });
+
+function initAudio() {
+  if (!props.url) return;
+  if (!audio) {
+    audio = new Audio(props.url);
+    audio.addEventListener('timeupdate', () => {
+      if (audio) {
+        currentTime.value = audio.currentTime;
+      }
+    });
+    audio.addEventListener('loadedmetadata', () => {
+      if (audio && !isNaN(audio.duration) && isFinite(audio.duration)) {
+        realDuration.value = audio.duration;
+      }
+    });
+    audio.addEventListener('ended', () => {
+      isPlaying.value = false;
+      currentTime.value = 0;
+    });
+    audio.addEventListener('error', (e) => {
+      console.warn('Audio playback error, falling back to timer simulation:', e);
+      pause();
+    });
+  }
+}
 
 function togglePlay() {
   if (isPlaying.value) {
@@ -78,10 +115,27 @@ function togglePlay() {
 }
 
 function play() {
+  if (props.url) {
+    initAudio();
+    if (audio) {
+      audio.play().then(() => {
+        isPlaying.value = true;
+      }).catch((err) => {
+        console.warn('Audio play error, falling back to timer simulation:', err);
+        startTimerSimulation();
+      });
+      return;
+    }
+  }
+  startTimerSimulation();
+}
+
+function startTimerSimulation() {
   isPlaying.value = true;
+  if (intervalId) clearInterval(intervalId);
   intervalId = window.setInterval(() => {
     currentTime.value += 0.2;
-    if (currentTime.value >= props.duration) {
+    if (currentTime.value >= effectiveDuration.value) {
       pause();
       currentTime.value = 0;
     }
@@ -90,13 +144,33 @@ function play() {
 
 function pause() {
   isPlaying.value = false;
+  if (audio) {
+    audio.pause();
+  }
   if (intervalId) {
     clearInterval(intervalId);
     intervalId = null;
   }
 }
 
+function seek(e: MouseEvent) {
+  const target = e.currentTarget as HTMLElement;
+  const rect = target.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+  const newTime = ratio * effectiveDuration.value;
+  currentTime.value = newTime;
+  if (audio && !isNaN(audio.duration) && isFinite(audio.duration)) {
+    audio.currentTime = ratio * audio.duration;
+  }
+}
+
 onUnmounted(() => {
+  if (audio) {
+    audio.pause();
+    audio.src = '';
+    audio = null;
+  }
   if (intervalId) {
     clearInterval(intervalId);
   }

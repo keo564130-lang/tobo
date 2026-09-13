@@ -107,8 +107,8 @@
         {{ chat.description }}
       </div>
 
-      <!-- РЕАЛЬНЫЕ НАСТРОЙКИ КАНАЛА (M3 тумблеры и переключатели Telegram-стиля) -->
-      <div class="flex flex-col gap-3 p-4 rounded-3xl bg-surface-low border border-surface-high/40">
+      <!-- РЕАЛЬНЫЕ НАСТРОЙКИ КАНАЛА (M3 тумблеры и переключатели Telegram-стиля, только для создателя канала) -->
+      <div v-if="canEdit" class="flex flex-col gap-3 p-4 rounded-3xl bg-surface-low border border-surface-high/40">
         <div class="flex items-center gap-2 pb-1 border-b border-surface-high/30">
           <span class="material-symbols-rounded text-primary text-lg">tune</span>
           <span class="text-xs font-bold text-surface-on uppercase tracking-wider">Параметры и модерация</span>

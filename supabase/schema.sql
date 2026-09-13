@@ -386,11 +386,13 @@ CREATE POLICY "Редактировать сообщение или ставит
         )
     );
 
-CREATE POLICY "Удалять сообщение может его отправитель или админ чата" 
+CREATE POLICY "Удалять сообщение может отправитель, админ или разработчик" 
     ON public.messages FOR DELETE 
     USING (
         auth.uid() = sender_id OR
-        public.is_chat_admin(chat_id, auth.uid())
+        public.is_chat_admin(chat_id, auth.uid()) OR
+        (SELECT created_by FROM public.chats WHERE id = messages.chat_id) = auth.uid() OR
+        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_developer = true)
     );
 
 -- ------------------------------------------------------------------------------

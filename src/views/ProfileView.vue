@@ -3,7 +3,27 @@
     <!-- Верхний плавающий островок профиля (Floating Top Bar Island) -->
     <FloatingTopBar>
       <template #leading>
-        <div class="flex items-center gap-2">
+        <!-- Если смотрим чужой профиль: кнопка Назад и имя -->
+        <div v-if="isOtherUser" class="flex items-center gap-2">
+          <button
+            type="button"
+            class="w-9 h-9 rounded-full flex items-center justify-center hover:bg-surface-high transition-colors m3-press-effect cursor-pointer shrink-0"
+            title="Назад"
+            @click="router.back()"
+          >
+            <span class="material-symbols-rounded text-xl text-surface-on">arrow_back</span>
+          </button>
+          <div class="flex flex-col min-w-0">
+            <span class="font-bold text-sm text-surface-on truncate max-w-[140px] sm:max-w-[220px]">
+              {{ displayProfile?.first_name || 'Профиль' }}
+            </span>
+            <span class="text-[10px] text-surface-onVariant/60 font-mono leading-none">
+              @{{ displayProfile?.username || 'user' }}
+            </span>
+          </div>
+        </div>
+        <!-- Если свой профиль: логотип tobo и бейдж Профиль -->
+        <div v-else class="flex items-center gap-2">
           <span class="font-sans font-black tracking-tight text-2xl leading-none text-primary select-none -translate-y-[1px]">tobo</span>
           <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary-container text-primary-onContainer leading-normal">
             Профиль
@@ -12,36 +32,49 @@
       </template>
 
       <template #trailing>
-        <!-- Кнопка Входа / Регистрации если не авторизован -->
-        <M3Button
-          v-if="!authStore.isAuthenticated"
-          variant="filled"
-          size="sm"
-          @click="authStore.openAuthModal('signin')"
-        >
-          <span class="material-symbols-rounded text-base">login</span>
-          <span>Войти</span>
-        </M3Button>
+        <template v-if="isOtherUser">
+          <M3Button
+            v-if="authStore.isAuthenticated"
+            variant="filled"
+            size="sm"
+            @click="handleDirectMessage"
+          >
+            <span class="material-symbols-rounded text-base">chat</span>
+            <span class="hidden sm:inline">Написать</span>
+          </M3Button>
+        </template>
+        <template v-else>
+          <!-- Кнопка Входа / Регистрации если не авторизован -->
+          <M3Button
+            v-if="!authStore.isAuthenticated"
+            variant="filled"
+            size="sm"
+            @click="authStore.openAuthModal('signin')"
+          >
+            <span class="material-symbols-rounded text-base">login</span>
+            <span>Войти</span>
+          </M3Button>
 
-        <!-- Кнопка выхода если авторизован -->
-        <button
-          v-else
-          type="button"
-          class="w-9 h-9 rounded-full flex items-center justify-center text-rose-500 hover:bg-rose-500/10 transition-colors m3-press-effect shrink-0 cursor-pointer"
-          title="Выйти из аккаунта"
-          @click="handleSignOut"
-        >
-          <span class="material-symbols-rounded text-[20px]">logout</span>
-        </button>
+          <!-- Кнопка выхода если авторизован -->
+          <button
+            v-else
+            type="button"
+            class="w-9 h-9 rounded-full flex items-center justify-center text-rose-500 hover:bg-rose-500/10 transition-colors m3-press-effect shrink-0 cursor-pointer"
+            title="Выйти из аккаунта"
+            @click="handleSignOut"
+          >
+            <span class="material-symbols-rounded text-[20px]">logout</span>
+          </button>
 
-        <!-- Кнопка перехода в Настройки -->
-        <router-link
-          to="/settings"
-          class="w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect shrink-0"
-          title="Настройки приложения"
-        >
-          <span class="material-symbols-rounded text-[20px]">settings</span>
-        </router-link>
+          <!-- Кнопка перехода в Настройки -->
+          <router-link
+            to="/settings"
+            class="w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect shrink-0"
+            title="Настройки приложения"
+          >
+            <span class="material-symbols-rounded text-[20px]">settings</span>
+          </router-link>
+        </template>
       </template>
     </FloatingTopBar>
 
@@ -50,8 +83,8 @@
       <!-- Баннер-обложка (Cover) в пастельных тонах со строгим соотношением 16:7 -->
       <div class="aspect-[16/7] w-full bg-gradient-to-r from-primary-container via-secondary-container to-tertiary-container relative overflow-hidden">
         <img
-          v-if="authStore.user.cover_url"
-          :src="authStore.user.cover_url"
+          v-if="displayProfile?.cover_url"
+          :src="displayProfile.cover_url"
           class="w-full h-full object-cover object-center opacity-90"
         />
         <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
@@ -62,8 +95,8 @@
         <div class="flex items-end justify-between -mt-12 mb-3">
           <div class="relative">
             <M3Avatar
-              :src="authStore.isAuthenticated ? authStore.user.avatar_url : undefined"
-              :name="authStore.isAuthenticated ? (authStore.user.first_name || 'tobo') : 'Гость'"
+              :src="displayProfile?.avatar_url"
+              :name="displayProfile?.first_name || 'Пользователь'"
               size="2xl"
               class="ring-4 ring-surface-lowest shadow-elevation-2 rounded-full"
             />
@@ -71,37 +104,51 @@
 
           <!-- Кнопка действия: ровно одна аккуратная кнопка, выровненная по низу, строго на карточке -->
           <div class="pb-1 shrink-0">
+            <!-- Чужой профиль: Написать сообщение -->
             <M3Button
-              v-if="authStore.isAuthenticated"
-              variant="tonal"
-              size="sm"
-              @click="showEditModal = true"
-            >
-              <span class="material-symbols-rounded text-base">edit</span>
-              <span>Редактировать</span>
-            </M3Button>
-            <M3Button
-              v-else
+              v-if="isOtherUser"
               variant="filled"
               size="sm"
-              @click="authStore.openAuthModal('signup')"
+              @click="handleDirectMessage"
             >
-              <span class="material-symbols-rounded text-base">person_add</span>
-              <span>Регистрация</span>
+              <span class="material-symbols-rounded text-base">chat</span>
+              <span>Написать сообщение</span>
             </M3Button>
+
+            <!-- Свой профиль: Редактировать (если авторизован) или Регистрация -->
+            <template v-else>
+              <M3Button
+                v-if="authStore.isAuthenticated"
+                variant="tonal"
+                size="sm"
+                @click="showEditModal = true"
+              >
+                <span class="material-symbols-rounded text-base">edit</span>
+                <span>Редактировать</span>
+              </M3Button>
+              <M3Button
+                v-else
+                variant="filled"
+                size="sm"
+                @click="authStore.openAuthModal('signup')"
+              >
+                <span class="material-symbols-rounded text-base">person_add</span>
+                <span>Регистрация</span>
+              </M3Button>
+            </template>
           </div>
         </div>
 
         <!-- Имя, юзернейм и био -->
         <div class="flex flex-col">
-          <template v-if="authStore.isAuthenticated">
+          <template v-if="displayProfile">
             <div class="flex items-center gap-2 flex-nowrap min-w-0">
               <h2 class="text-xl font-bold text-surface-on leading-tight truncate">
-                {{ authStore.user.first_name }} {{ authStore.user.last_name || '' }}
+                {{ displayProfile.first_name }} {{ displayProfile.last_name || '' }}
               </h2>
               <!-- Бейдж «Разработчик tobo» -->
               <div
-                v-if="authStore.isDeveloper"
+                v-if="isDeveloper"
                 class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:bg-emerald-950/80 dark:border-emerald-500/40 dark:text-emerald-300 font-bold text-[11px] tracking-wide shadow-xs shrink-0 select-none"
               >
                 <span class="material-symbols-rounded text-xs text-emerald-600 dark:text-emerald-400">verified</span>
@@ -109,10 +156,10 @@
               </div>
             </div>
             <span class="text-xs text-primary font-mono mt-0.5">
-              @{{ authStore.user.username }}
+              @{{ displayProfile.username || 'user' }}
             </span>
-            <p v-if="authStore.user.bio" class="text-xs text-surface-on mt-2.5 leading-relaxed max-w-xl select-text">
-              {{ authStore.user.bio }}
+            <p v-if="displayProfile.bio" class="text-xs text-surface-on mt-2.5 leading-relaxed max-w-xl select-text">
+              {{ displayProfile.bio }}
             </p>
           </template>
           <template v-else>
@@ -127,8 +174,8 @@
       </div>
     </div>
 
-    <!-- BENTO GRID ("Квадратики" / Экспрессивный хаб сервисов с Material Symbols) -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-6">
+    <!-- BENTO GRID ("Квадратики" / Экспрессивный хаб сервисов - только для своего профиля) -->
+    <div v-if="!isOtherUser" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-6">
       <!-- Плитка 1: Настройки -->
       <router-link
         to="/settings"
@@ -195,7 +242,7 @@
       </div>
 
       <div v-if="userPosts.length === 0" class="p-8 rounded-3xl bg-surface-lowest text-center text-xs text-surface-onVariant/60">
-        У вас пока нет публикаций на стене. Создайте первую запись в Ленте!
+        {{ isOtherUser ? 'У пользователя пока нет публикаций на стене.' : 'У вас пока нет публикаций на стене. Создайте первую запись в Ленте!' }}
       </div>
 
       <div v-else class="flex flex-col gap-3">
@@ -222,9 +269,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import type { Post } from '@/types/database';
+import { ref, computed, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import type { Post, Profile } from '@/types/database';
 import FloatingTopBar from '@/components/ui/FloatingTopBar.vue';
 import FloatingBottomNav from '@/components/ui/FloatingBottomNav.vue';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
@@ -236,7 +283,9 @@ import { useAuthStore } from '@/stores/auth';
 import { useFeedStore } from '@/stores/feed';
 import { useChatStore } from '@/stores/chat';
 import { useToastStore } from '@/stores/toast';
+import { localStore, supabase, isSupabaseConfigured } from '@/lib/supabase';
 
+const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const feedStore = useFeedStore();
@@ -247,9 +296,83 @@ const showEditModal = ref(false);
 const showCommentsSheet = ref(false);
 const activeCommentPost = ref<Post | null>(null);
 
-const userPosts = computed(() => {
-  return feedStore.posts.filter(p => p.author_id === authStore.user.id || p.is_reposted);
+const targetUserId = computed(() => route.params.id as string | undefined);
+const isOtherUser = computed(() => Boolean(targetUserId.value && targetUserId.value !== authStore.user?.id));
+
+const otherProfile = ref<Profile | null>(null);
+const isLoadingProfile = ref(false);
+
+async function loadTargetProfile(userId: string) {
+  isLoadingProfile.value = true;
+  // 1. Поиск в локальном хранилище профилей
+  const cached = localStore.getProfile(userId);
+  if (cached) {
+    otherProfile.value = cached;
+  }
+  // 2. Поиск в Supabase если настроен
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+      if (!error && data) {
+        otherProfile.value = data as Profile;
+      }
+    } catch (e) {
+      console.warn('Supabase fetch profile error:', e);
+    }
+  }
+  // 3. Поиск автора среди постов ленты
+  if (!otherProfile.value) {
+    const postWithAuthor = feedStore.posts.find(p => p.author_id === userId);
+    if (postWithAuthor?.author) {
+      otherProfile.value = postWithAuthor.author;
+    }
+  }
+  isLoadingProfile.value = false;
+}
+
+watch(
+  () => targetUserId.value,
+  (newId) => {
+    if (newId && newId !== authStore.user?.id) {
+      loadTargetProfile(newId);
+    } else {
+      otherProfile.value = null;
+    }
+  },
+  { immediate: true }
+);
+
+const displayProfile = computed(() => {
+  if (isOtherUser.value) {
+    return otherProfile.value;
+  }
+  return authStore.user;
 });
+
+const isDeveloper = computed(() => {
+  if (isOtherUser.value) {
+    return otherProfile.value?.username === 'tobo_team';
+  }
+  return authStore.isDeveloper;
+});
+
+const userPosts = computed(() => {
+  const curId = displayProfile.value?.id || targetUserId.value;
+  if (!curId) return [];
+  if (isOtherUser.value) {
+    return feedStore.posts.filter(p => p.author_id === curId);
+  }
+  return feedStore.posts.filter(p => p.author_id === authStore.user?.id || p.is_reposted);
+});
+
+async function handleDirectMessage() {
+  if (!displayProfile.value) return;
+  const chat = await chatStore.createDirectChat(displayProfile.value);
+  if (chat) {
+    chatStore.selectChat(chat.id);
+  }
+  router.push('/messages');
+}
 
 function openComments(post: Post) {
   activeCommentPost.value = post;

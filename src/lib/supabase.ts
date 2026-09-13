@@ -471,40 +471,6 @@ class LocalDataStore {
     }));
   }
 
-  toggleMessageReaction(chatId: string, messageId: string, emoji: string, userId: string): Record<string, { count: number; users: string[] }> {
-    const msgs = this.messages.get(chatId) || [];
-    const msg = msgs.find(m => m.id === messageId);
-    if (!msg) return {};
-
-    if (!msg.reactions) {
-      msg.reactions = {};
-    }
-
-    const current = msg.reactions[emoji] || { count: 0, users: [] };
-    const userIndex = current.users.indexOf(userId);
-
-    if (userIndex > -1) {
-      current.users.splice(userIndex, 1);
-      current.count = Math.max(0, current.count - 1);
-      if (current.count === 0) {
-        delete msg.reactions[emoji];
-      } else {
-        msg.reactions[emoji] = current;
-      }
-    } else {
-      current.users.push(userId);
-      current.count += 1;
-      msg.reactions[emoji] = current;
-    }
-
-    const serializedMessages: Record<string, Message[]> = {};
-    this.messages.forEach((mList, id) => {
-      serializedMessages[id] = mList;
-    });
-    this.persist(STORAGE_KEYS.MESSAGES, serializedMessages);
-    this.notify('message_reaction_updated', { chatId, messageId, reactions: msg.reactions });
-    return msg.reactions;
-  }
 
   getMessageComments(messageId: string): MessageComment[] {
     const list = this.messageComments.get(messageId) || [];
@@ -672,6 +638,57 @@ class LocalDataStore {
       return filtered.length < initialLen;
     }
     return false;
+  }
+
+  toggleMessageReaction(
+    chatId: string, 
+    messageId: string, 
+    emoji: string, 
+    userId: string
+  ): Record<string, { count: number; users: string[] }> {
+    const msgs = this.messages.get(chatId);
+    if (!msgs) return {};
+
+    const msg = msgs.find(m => m.id === messageId);
+    if (!msg) return {};
+
+    const reactions: Record<string, { count: number; users: string[] }> = msg.reactions || {};
+    msg.reactions = reactions;
+
+    // 1. Проверяем, стояла ли уже именно эта реакция у пользователя
+    const hadThisEmoji = Boolean(reactions[emoji]?.users.includes(userId));
+
+    // 2. Удаляем userId ИЗ ВСЕХ реакций данного сообщения (строго 1 реакция на пользователя)
+    Object.keys(reactions).forEach(key => {
+      const reaction = reactions[key];
+      if (reaction && reaction.users.includes(userId)) {
+        reaction.users = reaction.users.filter((u: string) => u !== userId);
+        reaction.count = reaction.users.length;
+        if (reaction.count <= 0) {
+          delete reactions[key];
+        }
+      }
+    });
+
+    // 3. Если реакция не стояла — добавляем ее
+    if (!hadThisEmoji) {
+      if (!reactions[emoji]) {
+        reactions[emoji] = { count: 0, users: [] };
+      }
+      reactions[emoji].users.push(userId);
+      reactions[emoji].count = reactions[emoji].users.length;
+    }
+
+    // Сохраняем в localStorage
+    const serializedMessages: Record<string, Message[]> = {};
+    this.messages.forEach((mList, id) => {
+      serializedMessages[id] = mList;
+    });
+    this.persist(STORAGE_KEYS.MESSAGES, serializedMessages);
+
+    this.notify('message_reaction_updated', { chatId, messageId, reactions: { ...reactions } });
+
+    return { ...reactions };
   }
 
   // --- Blocked Users & Reporting ---

@@ -168,18 +168,6 @@
             <span class="material-symbols-rounded text-base">add_reaction</span>
           </button>
 
-          <!-- Кнопка удаления сообщения для автора или разработчика -->
-          <button
-            v-if="canDeleteMessage(msg)"
-            type="button"
-            aria-label="Удалить сообщение"
-            title="Удалить сообщение"
-            class="opacity-0 group-hover:opacity-100 max-sm:opacity-60 transition-opacity text-surface-onVariant/40 hover:text-rose-500 text-xs p-1 cursor-pointer rounded-full hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center justify-center shrink-0"
-            @click.stop="confirmDeleteMessage(msg)"
-          >
-            <span class="material-symbols-rounded text-base">delete</span>
-          </button>
-
           <div
             class="w-full rounded-3xl p-3.5 transition-all shadow-xs"
             :class="[
@@ -214,6 +202,7 @@
             <!-- Голосовое сообщение с волной -->
             <VoiceMessagePlayer
               v-if="msg.voice_wave || msg.voice_url"
+              :url="msg.voice_url"
               :duration="msg.voice_duration || 5"
               :wave="msg.voice_wave"
             />
@@ -304,8 +293,12 @@
       </template>
     </div>
 
-    <!-- Нижняя панель ввода с учетом iOS Safe Area -->
-    <footer v-if="hasChannelAccess" class="fixed bottom-3 left-0 right-0 z-40 px-4 max-w-2xl mx-auto pointer-events-none">
+    <!-- Нижняя панель ввода с учетом iOS Safe Area и экранной клавиатуры -->
+    <footer
+      v-if="hasChannelAccess"
+      class="fixed bottom-3 left-0 right-0 z-40 px-4 max-w-2xl mx-auto pointer-events-none transition-[bottom] duration-150 ease-out"
+      :style="{ bottom: keyboardHeight > 0 ? (keyboardHeight + 8) + 'px' : undefined }"
+    >
       <!-- Плашка цитирования сообщения при ответе -->
       <div
         v-if="replyingTo && canPostInChannel"
@@ -557,7 +550,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, nextTick, watch } from 'vue';
+import { ref, reactive, computed, nextTick, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import type { Chat, Message, Profile } from '@/types/database';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
@@ -627,6 +620,7 @@ function onMsgTouchStart(e: TouchEvent, msg: Message) {
 
   clearLongPress();
   longPressTimer = setTimeout(() => {
+    navigator.vibrate?.(35);
     openReactionMenu(e, msg);
   }, 450);
 }
@@ -660,7 +654,7 @@ function onMsgTouchEnd(e: TouchEvent, msg: Message) {
 }
 
 // Меню реакций
-const quickEmojis = ['❤️', '👍', '🔥', '😂', '😮', '😢', '👏'];
+const quickEmojis = ['👍', '❤️', '🔥', '😂', '😢', '👏'];
 const activeReactionMsg = ref<Message | null>(null);
 const reactionMenuPos = reactive({ x: 0, y: 0 });
 const showReactionMenu = ref(false);
@@ -953,9 +947,63 @@ watch(
   }
 );
 
-function canDeleteMessage(msg: Message) {
-  if (!authStore.user?.id) return false;
-  return msg.sender_id === authStore.user.id || authStore.isDeveloper;
+let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+function setupChatConnection(id: string) {
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
+  if (!id) return;
+
+  chatStore.subscribeToActiveChat(id);
+  pollInterval = setInterval(() => {
+    chatStore.pollNewMessages(id);
+  }, 3000);
+}
+
+const keyboardHeight = ref(0);
+let handleViewportResize: (() => void) | null = null;
+
+onMounted(() => {
+  setupChatConnection(props.chatId);
+  scrollToBottom();
+
+  if (typeof window !== 'undefined' && window.visualViewport) {
+    handleViewportResize = () => {
+      const vv = window.visualViewport!;
+      const offset = Math.max(0, window.innerHeight - vv.height);
+      keyboardHeight.value = offset;
+    };
+    window.visualViewport.addEventListener('resize', handleViewportResize);
+    window.visualViewport.addEventListener('scroll', handleViewportResize);
+  }
+});
+
+watch(
+  () => props.chatId,
+  (newId) => {
+    setupChatConnection(newId);
+  }
+);
+
+onUnmounted(() => {
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
+  if (handleViewportResize && window.visualViewport) {
+    window.visualViewport.removeEventListener('resize', handleViewportResize);
+    window.visualViewport.removeEventListener('scroll', handleViewportResize);
+  }
+  chatStore.unsubscribeFromActiveChat();
+});
+
+function canDeleteMessage(msg: Message | null) {
+  if (!msg || !authStore.user?.id) return false;
+  if (msg.sender_id === authStore.user.id || authStore.isDeveloper) return true;
+  if (chat.value?.type === 'channel' && chat.value.created_by === authStore.user.id) return true;
+  return false;
 }
 
 const showDeleteMessageConfirm = ref(false);

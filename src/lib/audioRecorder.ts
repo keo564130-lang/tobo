@@ -88,11 +88,16 @@ export class VoiceRecorder {
         this.animationFrameId = null;
       }
 
-      this.mediaRecorder.onstop = () => {
+      this.mediaRecorder.onstop = async () => {
         const duration = Math.max(Math.round((Date.now() - this.startTime) / 1000), 1);
         const mimeType = this.mediaRecorder?.mimeType || 'audio/webm';
         const blob = new Blob(this.audioChunks, { type: mimeType });
-        const audioUrl = URL.createObjectURL(blob);
+        
+        const base64Url = await new Promise<string>((res) => {
+          const reader = new FileReader();
+          reader.onloadend = () => res((reader.result as string) || '');
+          reader.readAsDataURL(blob);
+        });
 
         // Формируем аккуратную волну из 24-28 столбцов для компактного отображения
         const targetBars = 26;
@@ -117,7 +122,7 @@ export class VoiceRecorder {
 
         resolve({
           blob,
-          audioUrl,
+          audioUrl: base64Url,
           duration,
           waveform
         });

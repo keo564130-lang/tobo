@@ -80,16 +80,20 @@
           </button>
         </div>
 
-        <!-- Результаты живого поиска -->
-        <div v-else-if="searchQuery.trim()" class="flex flex-col gap-1.5 max-h-56 overflow-y-auto custom-scrollbar">
+        <!-- Список пользователей (рекомендуемые контакты или результаты поиска) -->
+        <div v-else class="flex flex-col gap-1.5 max-h-56 overflow-y-auto custom-scrollbar">
           <!-- Индикатор поиска -->
-          <div v-if="isSearching" class="flex items-center justify-center py-4 text-xs text-surface-onVariant/70 gap-2">
+          <div v-if="isSearching" class="flex items-center justify-center py-6 text-xs text-surface-onVariant/70 gap-2">
             <span class="material-symbols-rounded text-sm animate-spin">sync</span>
             <span>Поиск пользователей...</span>
           </div>
 
           <!-- Список найденных в базе пользователей -->
           <template v-else-if="searchResults.length > 0">
+            <div class="px-1 py-1 flex items-center justify-between text-[11px] font-bold text-surface-onVariant/70 uppercase tracking-wider select-none">
+              <span>{{ searchQuery.trim() ? 'Результаты поиска' : 'Пользователи tobo' }}</span>
+              <span class="font-mono text-[10px]">{{ searchResults.length }}</span>
+            </div>
             <div
               v-for="u in searchResults"
               :key="u.id"
@@ -117,27 +121,16 @@
             </div>
           </template>
 
-          <!-- Опция создания диалога с произвольным именем, если в базе не найден -->
+          <!-- Пользователь не найден -->
           <div
             v-else
-            class="flex items-center justify-between p-3 rounded-2xl bg-surface-low hover:bg-surface-high/60 border border-surface-high/40 transition-all cursor-pointer m3-press-effect"
-            @click="selectCustomName(searchQuery.trim())"
+            class="py-6 px-4 text-center flex flex-col items-center gap-2 text-surface-onVariant"
           >
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <span class="material-symbols-rounded text-xl">person_add</span>
-              </div>
-              <div class="flex flex-col">
-                <span class="text-xs font-semibold text-surface-on">
-                  Создать диалог с «{{ searchQuery.trim() }}»
-                </span>
-                <span class="text-[11px] text-surface-onVariant/60">
-                  Пользователь не найден в базе tobo
-                </span>
-              </div>
-            </div>
-            <span class="material-symbols-rounded text-primary text-xl">
-              arrow_forward
+            <span class="material-symbols-rounded text-2xl opacity-40">
+              {{ searchQuery.trim() ? 'person_off' : 'group' }}
+            </span>
+            <span class="text-xs">
+              {{ searchQuery.trim() ? `Пользователь «${searchQuery.trim()}» не найден в tobo` : 'Нет доступных пользователей' }}
             </span>
           </div>
         </div>
@@ -494,22 +487,22 @@ function closeModal() {
 }
 
 watch(
-  () => props.modelValue,
-  (val) => {
-    if (!val) {
+  () => [props.modelValue, props.type],
+  ([val, t]) => {
+    if (val && t === 'direct') {
+      if (!selectedUser.value) {
+        executeSearch();
+      }
+    } else if (!val) {
       resetForm();
     }
-  }
+  },
+  { immediate: true }
 );
 
 // Поиск для личного диалога
 async function executeSearch() {
   const query = searchQuery.value.trim();
-  if (!query) {
-    searchResults.value = [];
-    isSearching.value = false;
-    return;
-  }
   isSearching.value = true;
   try {
     const results = await chatStore.searchUsers(query);
@@ -534,22 +527,12 @@ function clearDirectSelection() {
   searchQuery.value = '';
   searchResults.value = [];
   selectedUser.value = null;
+  executeSearch();
 }
 
 function selectUser(user: Profile) {
   selectedUser.value = user;
   searchQuery.value = `${user.first_name} ${user.last_name || ''}`.trim();
-  searchResults.value = [];
-}
-
-function selectCustomName(customName: string) {
-  selectedUser.value = {
-    id: `custom-${Date.now()}`,
-    first_name: customName,
-    username: customName.toLowerCase().replace(/\s+/g, '_'),
-    is_online: false,
-    created_at: new Date().toISOString()
-  };
   searchResults.value = [];
 }
 
@@ -605,23 +588,34 @@ function removeMember(idx: number) {
 // Отправка форм создания
 async function submitDirectChat() {
   let target: Profile | null = selectedUser.value;
+
   if (!target) {
-    const q = searchQuery.value.trim();
-    if (!q) return;
-    target = {
-      id: `custom-${Date.now()}`,
-      first_name: q,
-      username: q.toLowerCase().replace(/\s+/g, '_'),
-      is_online: false,
-      created_at: new Date().toISOString()
-    };
+    const q = searchQuery.value.trim().toLowerCase().replace(/^@/, '');
+    if (searchResults.value.length === 1) {
+      target = searchResults.value[0];
+    } else if (searchResults.value.length > 1 && q) {
+      const exact = searchResults.value.find(u => 
+        (u.username && u.username.toLowerCase() === q) ||
+        (u.first_name && u.first_name.toLowerCase() === q)
+      );
+      if (exact) target = exact;
+    }
+  }
+
+  if (!target) {
+    toastStore.show('Пользователь не найден. Выберите собеседника из списка', 'warning');
+    return;
   }
 
   isSubmitting.value = true;
   try {
-    await chatStore.createDirectChat(target);
-    toastStore.show('Диалог успешно открыт', 'success');
-    closeModal();
+    const chat = await chatStore.createDirectChat(target);
+    if (chat) {
+      toastStore.show('Диалог успешно открыт', 'success');
+      closeModal();
+    } else {
+      toastStore.show('Не удалось открыть диалог с пользователем', 'error');
+    }
   } catch (err) {
     console.error('Ошибка создания прямого диалога:', err);
     toastStore.show('Не удалось создать диалог', 'error');

@@ -29,14 +29,19 @@
         :key="comment.id"
         class="flex items-start gap-3 p-3 rounded-2xl bg-surface-low border border-surface-high/30 transition-colors"
       >
-        <M3Avatar
-          :src="comment.author?.avatar_url"
-          :name="comment.author?.first_name || 'Пользователь'"
-          size="sm"
-        />
+        <div class="cursor-pointer shrink-0" @click.stop="goToProfile(comment.author_id)">
+          <M3Avatar
+            :src="comment.author?.avatar_url"
+            :name="comment.author?.first_name || 'Пользователь'"
+            size="sm"
+          />
+        </div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center justify-between gap-2">
-            <span class="text-xs font-bold text-surface-on truncate">
+            <span
+              class="text-xs font-bold text-surface-on truncate hover:underline cursor-pointer"
+              @click.stop="goToProfile(comment.author_id)"
+            >
               {{ comment.author?.first_name }} {{ comment.author?.last_name || '' }}
             </span>
             <span class="text-[10px] text-surface-onVariant/60 font-mono shrink-0">
@@ -74,6 +79,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import type { Chat, Message } from '@/types/database';
 import M3BottomSheet from '@/components/ui/M3BottomSheet.vue';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
@@ -87,15 +93,23 @@ const props = defineProps<{
   message: Message | null;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void;
 }>();
 
+const router = useRouter();
 const chatStore = useChatStore();
 const toastStore = useToastStore();
 
 const commentText = ref('');
 const isSubmitting = ref(false);
+
+function goToProfile(authorId?: string) {
+  if (authorId) {
+    emit('update:modelValue', false);
+    router.push('/profile/' + authorId);
+  }
+}
 
 const comments = computed(() => {
   if (!props.message) return [];

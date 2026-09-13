@@ -304,8 +304,8 @@ const channelUsername = computed(() => (props.post.channel?.title || 'channel').
 function goToAuthor() {
   if (isChannelPost.value && props.post.channel_id) {
     router.push(`/messages?chat=${props.post.channel_id}`);
-  } else if (props.post.author_id === authStore.user?.id) {
-    router.push('/profile');
+  } else if (props.post.author_id) {
+    router.push(`/profile/${props.post.author_id}`);
   }
 }
 

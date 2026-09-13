@@ -276,7 +276,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import type { Chat, ChatType } from '@/types/database';
 import FloatingTopBar from '@/components/ui/FloatingTopBar.vue';
 import FloatingBottomNav from '@/components/ui/FloatingBottomNav.vue';
@@ -291,8 +291,20 @@ import { localStore } from '@/lib/supabase';
 const chatStore = useChatStore();
 const authStore = useAuthStore();
 
+let chatListInterval: ReturnType<typeof setInterval> | null = null;
+
 onMounted(async () => {
   await chatStore.refreshChats();
+  chatListInterval = setInterval(() => {
+    chatStore.refreshChats();
+  }, 6000);
+});
+
+onUnmounted(() => {
+  if (chatListInterval) {
+    clearInterval(chatListInterval);
+    chatListInterval = null;
+  }
 });
 
 const searchQuery = ref('');

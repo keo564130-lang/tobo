@@ -15,10 +15,17 @@
         :key="comment.id"
         class="flex items-start gap-3 p-3 rounded-2xl bg-surface-low border border-surface-high/30"
       >
-        <M3Avatar :src="comment.author?.avatar_url" :name="comment.author?.first_name || 'Пользователь'" size="sm" />
+        <div class="cursor-pointer shrink-0" @click.stop="goToProfile(comment.author_id)">
+          <M3Avatar :src="comment.author?.avatar_url" :name="comment.author?.first_name || 'Пользователь'" size="sm" />
+        </div>
         <div class="flex-1">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-surface-on">{{ comment.author?.first_name }} {{ comment.author?.last_name || '' }}</span>
+            <span
+              class="text-xs font-bold text-surface-on hover:underline cursor-pointer"
+              @click.stop="goToProfile(comment.author_id)"
+            >
+              {{ comment.author?.first_name }} {{ comment.author?.last_name || '' }}
+            </span>
             <span class="text-[10px] text-surface-onVariant/60 font-mono">{{ formatTime(comment.created_at) }}</span>
           </div>
           <p class="text-xs text-surface-on mt-1 leading-relaxed select-text">{{ comment.text }}</p>
@@ -49,6 +56,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import type { Post } from '@/types/database';
 import M3BottomSheet from '@/components/ui/M3BottomSheet.vue';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
@@ -61,14 +69,22 @@ const props = defineProps<{
   post: Post | null;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void;
 }>();
 
+const router = useRouter();
 const feedStore = useFeedStore();
 const toastStore = useToastStore();
 
 const commentText = ref('');
+
+function goToProfile(authorId?: string) {
+  if (authorId) {
+    emit('update:modelValue', false);
+    router.push('/profile/' + authorId);
+  }
+}
 
 const comments = computed(() => (props.post ? feedStore.commentsMap[props.post.id] || [] : []));
 
