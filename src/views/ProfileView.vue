@@ -102,9 +102,9 @@
               <!-- Бейдж «Разработчик tobo» -->
               <div
                 v-if="authStore.isDeveloper"
-                class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-primary-container to-secondary-container text-primary-onContainer font-bold text-[10px] tracking-wide shadow-xs select-none"
+                class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:bg-emerald-950/80 dark:border-emerald-500/40 dark:text-emerald-300 font-bold text-[11px] tracking-wide shadow-xs select-none transition-colors"
               >
-                <span class="material-symbols-rounded text-xs text-primary">verified</span>
+                <span class="material-symbols-rounded text-xs text-emerald-600 dark:text-emerald-400">verified</span>
                 <span>Разработчик tobo</span>
               </div>
             </div>

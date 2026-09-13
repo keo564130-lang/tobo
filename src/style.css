@@ -73,6 +73,12 @@ html[data-theme-palette="peach"] {
   --color-on-surface-variant: #B9BCC5;
   --color-outline: #484B54;
   --color-outline-variant: #2E323A;
+
+  /* Темные тональные контейнеры по умолчанию */
+  --color-secondary-container: #252033;
+  --color-on-secondary-container: #EFE8F7;
+  --color-tertiary-container: #1C2A22;
+  --color-on-tertiary-container: #DFF4E9;
 }
 
 /* Выразительная цветная обводка карточек под тон выбранной палитры */
@@ -95,6 +101,16 @@ html.dark[data-theme-palette="sky"] {
   --color-primary-container: #202D44;
   --color-on-primary: #0F1E38;
   --color-on-primary-container: #D1E1FC;
+
+  --color-secondary: #D6C7E5;
+  --color-secondary-container: #2A2538;
+  --color-on-secondary: #221233;
+  --color-on-secondary-container: #EFE8F7;
+
+  --color-tertiary: #BCE7D0;
+  --color-tertiary-container: #1C2A22;
+  --color-on-tertiary: #0B2416;
+  --color-on-tertiary-container: #DFF4E9;
 }
 
 html.dark[data-theme-palette="lavender"] {
@@ -103,6 +119,16 @@ html.dark[data-theme-palette="lavender"] {
   --color-primary-container: #362846;
   --color-on-primary: #210F33;
   --color-on-primary-container: #EFE8F7;
+
+  --color-secondary: #9EB7E5;
+  --color-secondary-container: #202D44;
+  --color-on-secondary: #0F1E38;
+  --color-on-secondary-container: #D1E1FC;
+
+  --color-tertiary: #BCE7D0;
+  --color-tertiary-container: #1C2A22;
+  --color-on-tertiary: #0B2416;
+  --color-on-tertiary-container: #DFF4E9;
 }
 
 html.dark[data-theme-palette="mint"] {
@@ -111,6 +137,16 @@ html.dark[data-theme-palette="mint"] {
   --color-primary-container: #1D3B2D;
   --color-on-primary: #072215;
   --color-on-primary-container: #DFF4E9;
+
+  --color-secondary: #9EB7E5;
+  --color-secondary-container: #1C2536;
+  --color-on-secondary: #0F1E38;
+  --color-on-secondary-container: #D1E1FC;
+
+  --color-tertiary: #D6C7E5;
+  --color-tertiary-container: #252033;
+  --color-on-tertiary: #221233;
+  --color-on-tertiary-container: #EFE8F7;
 }
 
 html.dark[data-theme-palette="peach"] {
@@ -119,6 +155,16 @@ html.dark[data-theme-palette="peach"] {
   --color-primary-container: #462A1F;
   --color-on-primary: #331107;
   --color-on-primary-container: #FDE8DD;
+
+  --color-secondary: #D6C7E5;
+  --color-secondary-container: #2A2538;
+  --color-on-secondary: #221233;
+  --color-on-secondary-container: #EFE8F7;
+
+  --color-tertiary: #BCE7D0;
+  --color-tertiary-container: #1C2A22;
+  --color-on-tertiary: #0B2416;
+  --color-on-tertiary-container: #DFF4E9;
 }
 
 html, body, .font-sans {

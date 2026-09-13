@@ -235,6 +235,27 @@ function closeModal() {
   emit('update:modelValue', false);
 }
 
+function formatAuthError(err?: string): string {
+  if (!err) return 'Произошла ошибка при авторизации';
+  const lower = err.toLowerCase();
+  if (lower.includes('rate limit')) {
+    return 'Превышен лимит отправки писем. Пожалуйста, подождите или обратитесь к разработчику.';
+  }
+  if (lower.includes('email not confirmed')) {
+    return 'Почта еще не подтверждена. Мы активируем ваш аккаунт — попробуйте войти снова через минуту или обновите страницу.';
+  }
+  if (lower.includes('invalid login credentials') || lower.includes('invalid credentials')) {
+    return 'Неверный адрес электронной почты или пароль.';
+  }
+  if (lower.includes('user already registered') || lower.includes('already registered') || lower.includes('user already exists')) {
+    return 'Пользователь с такой почтой уже зарегистрирован. Переключитесь на «Вход».';
+  }
+  if (lower.includes('password should be at least 6 characters') || lower.includes('weak_password')) {
+    return 'Пароль должен содержать минимум 6 символов.';
+  }
+  return err;
+}
+
 async function handleSubmit() {
   emailError.value = '';
   passwordError.value = '';
@@ -263,7 +284,7 @@ async function handleSubmit() {
       emit('auth-success');
       closeModal();
     } else {
-      generalError.value = res.error || 'Неверный логин или пароль';
+      generalError.value = formatAuthError(res.error || 'Неверный логин или пароль');
     }
   } else {
     const res = await authStore.signUp(trimmedEmail, password.value);
@@ -274,7 +295,7 @@ async function handleSubmit() {
       // Переход на экран онбординга к настройке профиля
       authStore.openOnboarding('profile');
     } else {
-      generalError.value = res.error || 'Ошибка при регистрации аккаунта';
+      generalError.value = formatAuthError(res.error || 'Ошибка при регистрации аккаунта');
     }
   }
 }
