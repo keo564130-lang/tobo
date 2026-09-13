@@ -30,27 +30,72 @@
         </div>
       </div>
 
-      <!-- Правая часть: Скоринг ранжирования и кнопка удаления -->
-      <div class="flex items-center gap-1.5 shrink-0">
-        <div
-          v-if="post.rank_score !== undefined"
-          class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-low text-xs text-surface-onVariant/80 font-mono font-medium"
-          title="Алгоритмический рейтинг с Time Decay"
-        >
-          <span class="material-symbols-rounded text-primary text-sm">trending_up</span>
-          <span>{{ post.rank_score }}</span>
-        </div>
-
+      <!-- Правая часть: Меню действий с публикацией -->
+      <div class="relative shrink-0">
         <button
-          v-if="canDelete"
           type="button"
-          aria-label="Удалить запись"
-          title="Удалить запись"
-          class="text-surface-onVariant/60 hover:text-rose-500 transition-colors cursor-pointer p-1 rounded-full hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center justify-center"
-          @click.stop="showDeleteConfirm = true"
+          aria-label="Меню публикации"
+          class="w-8 h-8 rounded-full flex items-center justify-center text-surface-onVariant/70 hover:text-surface-on hover:bg-surface-high/60 transition-colors cursor-pointer"
+          @click.stop="showMenu = !showMenu"
         >
-          <span class="material-symbols-rounded text-lg">delete</span>
+          <span class="material-symbols-rounded text-xl">more_vert</span>
         </button>
+
+        <!-- Оверлей для закрытия меню при клике вне -->
+        <div
+          v-if="showMenu"
+          class="fixed inset-0 z-20"
+          @click.stop="showMenu = false"
+        />
+
+        <!-- Выпадающее меню трех точек -->
+        <div
+          v-if="showMenu"
+          class="absolute right-0 top-9 w-52 rounded-3xl bg-surface-lowest shadow-elevation-3 border border-surface-high/60 p-1.5 z-30 flex flex-col gap-1 text-xs font-medium text-surface-on"
+        >
+          <!-- Если автор или разработчик: Удалить запись -->
+          <button
+            v-if="canDelete"
+            type="button"
+            class="w-full flex items-center gap-2 px-2.5 py-2 rounded-2xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors text-left cursor-pointer"
+            @click.stop="showMenu = false; showDeleteConfirm = true"
+          >
+            <span class="material-symbols-rounded text-lg">delete</span>
+            <span>Удалить запись</span>
+          </button>
+
+          <!-- Если НЕ автор: Скрыть запись и Пожаловаться -->
+          <template v-if="!isAuthor">
+            <button
+              type="button"
+              class="w-full flex items-center gap-2 px-2.5 py-2 rounded-2xl hover:bg-surface-high/60 transition-colors text-left cursor-pointer"
+              @click.stop="handleHidePost"
+            >
+              <span class="material-symbols-rounded text-lg text-surface-onVariant">visibility_off</span>
+              <span>Скрыть запись</span>
+            </button>
+            <button
+              type="button"
+              class="w-full flex items-center gap-2 px-2.5 py-2 rounded-2xl hover:bg-surface-high/60 transition-colors text-left cursor-pointer"
+              @click.stop="handleOpenReport"
+            >
+              <span class="material-symbols-rounded text-lg text-rose-500">flag</span>
+              <span>Пожаловаться</span>
+            </button>
+          </template>
+
+          <!-- Разделитель -->
+          <div class="h-px bg-surface-high my-1" />
+
+          <!-- Футер меню: Рейтинг -->
+          <div class="px-2.5 py-1.5 flex items-center justify-between text-[11px] text-surface-onVariant/70 font-mono">
+            <span class="flex items-center gap-1.5">
+              <span class="material-symbols-rounded text-xs text-primary">trending_up</span>
+              Рейтинг:
+            </span>
+            <span class="font-bold text-surface-on">{{ formattedRankScore }}</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -166,6 +211,12 @@
       :image-url="lightboxUrl"
     />
 
+    <!-- Модальное окно жалобы на публикацию -->
+    <ReportPostModal
+      v-model="showReportModal"
+      :post="post"
+    />
+
     <!-- Подтверждение удаления записи -->
     <Teleport to="body">
       <div
@@ -210,6 +261,7 @@ import { ref, computed } from 'vue';
 import type { Post } from '@/types/database';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
 import ImageLightboxModal from '@/components/ui/ImageLightboxModal.vue';
+import ReportPostModal from '@/components/feed/ReportPostModal.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useFeedStore } from '@/stores/feed';
 import { useToastStore } from '@/stores/toast';
@@ -226,11 +278,32 @@ const authStore = useAuthStore();
 const feedStore = useFeedStore();
 const toastStore = useToastStore();
 
+const showMenu = ref(false);
+const showReportModal = ref(false);
+const showDeleteConfirm = ref(false);
+
+const isAuthor = computed(() => {
+  return Boolean(authStore.user?.id && props.post.author_id === authStore.user.id);
+});
+
 const canDelete = computed(() => {
   return Boolean(authStore.user?.id && (props.post.author_id === authStore.user.id || authStore.isDeveloper));
 });
 
-const showDeleteConfirm = ref(false);
+const formattedRankScore = computed(() => {
+  return Number(props.post.rank_score ?? 0).toFixed(2);
+});
+
+function handleHidePost() {
+  showMenu.value = false;
+  feedStore.hidePost(props.post.id);
+  toastStore.show('Запись скрыта из вашей ленты', 'info');
+}
+
+function handleOpenReport() {
+  showMenu.value = false;
+  showReportModal.value = true;
+}
 
 async function handleDeletePost() {
   showDeleteConfirm.value = false;

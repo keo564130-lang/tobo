@@ -29,8 +29,22 @@ function saveIdSetToStorage(key: string, set: Set<string>): void {
   }
 }
 
+function getHiddenPostsKey(userId?: string): string {
+  return `tobo_hidden_posts_${userId || 'guest'}`;
+}
+
+function loadHiddenPosts(userId?: string): Set<string> {
+  return loadIdSetFromStorage(getHiddenPostsKey(userId));
+}
+
 export const useFeedStore = defineStore('feed', () => {
-  const posts = ref<Post[]>(isSupabaseConfigured() ? [] : localStore.getRankedFeed());
+  const authStore = useAuthStore();
+  const hiddenPostIds = ref<Set<string>>(loadHiddenPosts(authStore.user?.id));
+  const posts = ref<Post[]>(
+    isSupabaseConfigured()
+      ? []
+      : localStore.getRankedFeed().filter(p => !hiddenPostIds.value.has(p.id))
+  );
   const isLoading = ref(false);
   const isCreatingPost = ref(false);
   const commentsMap = ref<Record<string, PostComment[]>>({});
@@ -64,13 +78,17 @@ export const useFeedStore = defineStore('feed', () => {
         }
       }
 
+      hiddenPostIds.value = loadHiddenPosts(currentUserId);
+
       const likesKey = `tobo_user_likes_${currentUserId}`;
       const repostsKey = `tobo_user_reposts_${currentUserId}`;
       const bookmarksKey = `tobo_saved_post_ids_${currentUserId || 'guest'}`;
+      const hiddenKey = `tobo_hidden_posts_${currentUserId || 'guest'}`;
 
       const likedSet = loadIdSetFromStorage(likesKey);
       const repostedSet = loadIdSetFromStorage(repostsKey);
       const bookmarkSet = loadIdSetFromStorage(bookmarksKey);
+      const hiddenSet = loadIdSetFromStorage(hiddenKey);
 
       // При наличии authUser в Supabase параллельно запрашиваем post_likes и post_reposts
       if (authUser && isSupabaseConfigured() && supabase) {
@@ -94,12 +112,13 @@ export const useFeedStore = defineStore('feed', () => {
       }
 
       const applyInteractions = (items: Post[]): Post[] => {
-        items.forEach(post => {
+        const filtered = items.filter(post => !hiddenSet.has(post.id));
+        filtered.forEach(post => {
           post.is_liked = likedSet.has(post.id);
           post.is_reposted = repostedSet.has(post.id);
           post.is_bookmarked = bookmarkSet.has(post.id);
         });
-        return items;
+        return filtered;
       };
 
       if (isSupabaseConfigured() && supabase) {
@@ -134,7 +153,7 @@ export const useFeedStore = defineStore('feed', () => {
             created_at: row.created_at,
             rank_score: Number(row.rank_score)
           }));
-          posts.value = deduplicatePosts(applyInteractions(mappedPosts));
+          posts.value = deduplicatePosts(applyInteractions(mappedPosts)).filter(p => !hiddenPostIds.value.has(p.id));
           return;
         }
 
@@ -183,7 +202,7 @@ export const useFeedStore = defineStore('feed', () => {
             created_at: row.created_at,
             rank_score: 0
           }));
-          posts.value = deduplicatePosts(applyInteractions(mappedPosts));
+          posts.value = deduplicatePosts(applyInteractions(mappedPosts)).filter(p => !hiddenPostIds.value.has(p.id));
           return;
         }
 
@@ -194,7 +213,7 @@ export const useFeedStore = defineStore('feed', () => {
 
       // Офлайн режим
       const localFeed = localStore.getRankedFeed();
-      posts.value = deduplicatePosts(applyInteractions(localFeed));
+      posts.value = deduplicatePosts(applyInteractions(localFeed)).filter(p => !hiddenPostIds.value.has(p.id));
     } catch (err) {
       console.warn('Supabase feed fetch failed:', err);
       if (isSupabaseConfigured()) {
@@ -202,7 +221,7 @@ export const useFeedStore = defineStore('feed', () => {
         return;
       }
       const localFeed = localStore.getRankedFeed();
-      posts.value = deduplicatePosts(localFeed);
+      posts.value = deduplicatePosts(localFeed).filter(p => !hiddenPostIds.value.has(p.id));
     } finally {
       isLoading.value = false;
     }
@@ -569,6 +588,126 @@ export const useFeedStore = defineStore('feed', () => {
     return localStore.getUserPosts(userId);
   }
 
+  function hidePost(postId: string): void {
+    const currentUserId = authStore.user?.id || 'guest';
+    const nextSet = new Set(hiddenPostIds.value);
+    nextSet.add(postId);
+    hiddenPostIds.value = nextSet;
+    saveIdSetToStorage(getHiddenPostsKey(currentUserId), nextSet);
+    posts.value = posts.value.filter(p => p.id !== postId);
+    delete commentsMap.value[postId];
+  }
+
+  async function submitReport(
+    postId: string,
+    reason: string,
+    description: string,
+    screenshots: (string | File)[] = []
+  ): Promise<boolean> {
+    let authUserId: string | null = authStore.user?.id || null;
+
+    // Нормализация скриншотов: File преобразуем в Data URL / имя файла
+    let resolvedUrls: string[] = [];
+    try {
+      resolvedUrls = await Promise.all(
+        screenshots.map(async (item) => {
+          if (typeof item === 'string') return item;
+          if (typeof File !== 'undefined' && item instanceof File) {
+            return new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve((reader.result as string) || item.name);
+              reader.onerror = () => resolve(item.name);
+              reader.readAsDataURL(item);
+            });
+          }
+          return String(item);
+        })
+      );
+    } catch {
+      resolvedUrls = screenshots.map(s => typeof s === 'string' ? s : (s as File).name || 'screenshot.png');
+    }
+
+    const reportPayload = {
+      id: `report-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      reporter_id: authUserId,
+      target_type: 'post',
+      target_id: postId,
+      reason,
+      description: description || '',
+      media_urls: resolvedUrls,
+      created_at: new Date().toISOString()
+    };
+
+    let supabaseSaved = false;
+
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser?.id) {
+          authUserId = authUser.id;
+          reportPayload.reporter_id = authUser.id;
+        }
+
+        const { error } = await supabase.from('reports').insert({
+          reporter_id: authUserId,
+          target_type: 'post',
+          target_id: postId,
+          reason,
+          description: description || '',
+          media_urls: resolvedUrls
+        });
+
+        if (!error) {
+          supabaseSaved = true;
+        } else {
+          console.warn('Supabase reports insert notice/error, falling back to localStore:', error.message);
+        }
+      } catch (supaErr) {
+        console.warn('Supabase submitReport failed, fallback:', supaErr);
+      }
+    }
+
+    // Fallback: localStore.reportUser или сохранение в localStorage tobo_reports
+    if (!supabaseSaved) {
+      try {
+        const targetPost = posts.value.find(p => p.id === postId) || localStore.getPost(postId);
+        if (targetPost?.author_id) {
+          localStore.reportUser(targetPost.author_id, reason, `${description || ''} [Post: ${postId}]`);
+        }
+      } catch (localErr) {
+        console.warn('localStore.reportUser fallback error:', localErr);
+      }
+
+      try {
+        const rawReports = localStorage.getItem('tobo_reports');
+        const list = rawReports ? JSON.parse(rawReports) : [];
+        list.push(reportPayload);
+        localStorage.setItem('tobo_reports', JSON.stringify(list));
+      } catch (storageErr) {
+        console.warn('localStorage tobo_reports save error:', storageErr);
+      }
+    }
+
+    // Подготовка структуры данных для последующей отправки на email модераторам
+    const emailDispatchData = {
+      to: 'moderation@tobo.me',
+      subject: `[Tobo Moderation] Жалоба на публикацию #${postId} (${reason})`,
+      report: reportPayload,
+      submitted_at: new Date().toISOString()
+    };
+    console.info('[Moderation Queue] Email dispatch payload prepared:', emailDispatchData);
+
+    try {
+      const pendingEmails = JSON.parse(localStorage.getItem('tobo_pending_moderator_reports') || '[]');
+      pendingEmails.push(emailDispatchData);
+      localStorage.setItem('tobo_pending_moderator_reports', JSON.stringify(pendingEmails));
+    } catch (cacheErr) {
+      console.warn('Failed to cache pending moderator email report:', cacheErr);
+    }
+
+    return true;
+  }
+
   // Realtime подписка только для офлайн режима
   localStore.subscribe((event) => {
     if (!isSupabaseConfigured()) {
@@ -583,6 +722,9 @@ export const useFeedStore = defineStore('feed', () => {
     isLoading,
     isCreatingPost,
     commentsMap,
+    hiddenPostIds,
+    hidePost,
+    submitReport,
     refreshFeed,
     createPost,
     deletePost,
