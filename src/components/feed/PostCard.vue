@@ -30,14 +30,27 @@
         </div>
       </div>
 
-      <!-- Скоринг ранжирования ленты с затуханием во времени (Time Decay) -->
-      <div
-        v-if="post.rank_score !== undefined"
-        class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-low text-xs text-surface-onVariant/80 font-mono font-medium"
-        title="Алгоритмический рейтинг с Time Decay"
-      >
-        <span class="material-symbols-rounded text-primary text-sm">trending_up</span>
-        <span>{{ post.rank_score }}</span>
+      <!-- Правая часть: Скоринг ранжирования и кнопка удаления -->
+      <div class="flex items-center gap-1.5 shrink-0">
+        <div
+          v-if="post.rank_score !== undefined"
+          class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-low text-xs text-surface-onVariant/80 font-mono font-medium"
+          title="Алгоритмический рейтинг с Time Decay"
+        >
+          <span class="material-symbols-rounded text-primary text-sm">trending_up</span>
+          <span>{{ post.rank_score }}</span>
+        </div>
+
+        <button
+          v-if="canDelete"
+          type="button"
+          aria-label="Удалить запись"
+          title="Удалить запись"
+          class="text-surface-onVariant/60 hover:text-rose-500 transition-colors cursor-pointer p-1 rounded-full hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center justify-center"
+          @click.stop="showDeleteConfirm = true"
+        >
+          <span class="material-symbols-rounded text-lg">delete</span>
+        </button>
       </div>
     </div>
 
@@ -152,6 +165,43 @@
       v-model="showLightbox"
       :image-url="lightboxUrl"
     />
+
+    <!-- Подтверждение удаления записи -->
+    <Teleport to="body">
+      <div
+        v-if="showDeleteConfirm"
+        class="fixed inset-0 z-modal bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+        @click.self="showDeleteConfirm = false"
+      >
+        <div class="w-full max-w-sm rounded-3xl bg-surface-lowest border border-surface-high/60 p-5 shadow-elevation-3 flex flex-col gap-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+              <span class="material-symbols-rounded text-2xl">delete_forever</span>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-surface-on">Удалить запись?</h3>
+              <p class="text-xs text-surface-onVariant/80 mt-0.5">Это действие необратимо.</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              class="px-4 py-2 rounded-full text-xs font-semibold text-surface-on hover:bg-surface-high transition-colors cursor-pointer"
+              @click="showDeleteConfirm = false"
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              class="px-4 py-2 rounded-full bg-rose-500 text-white text-xs font-bold hover:bg-rose-600 active:scale-95 transition-all shadow-xs cursor-pointer"
+              @click="handleDeletePost"
+            >
+              Удалить
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </article>
 </template>
 
@@ -160,6 +210,7 @@ import { ref, computed } from 'vue';
 import type { Post } from '@/types/database';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
 import ImageLightboxModal from '@/components/ui/ImageLightboxModal.vue';
+import { useAuthStore } from '@/stores/auth';
 import { useFeedStore } from '@/stores/feed';
 import { useToastStore } from '@/stores/toast';
 
@@ -171,8 +222,21 @@ defineEmits<{
   (e: 'open-comments', post: Post): void;
 }>();
 
+const authStore = useAuthStore();
 const feedStore = useFeedStore();
 const toastStore = useToastStore();
+
+const canDelete = computed(() => {
+  return Boolean(authStore.user?.id && (props.post.author_id === authStore.user.id || authStore.isDeveloper));
+});
+
+const showDeleteConfirm = ref(false);
+
+async function handleDeletePost() {
+  showDeleteConfirm.value = false;
+  await feedStore.deletePost(props.post.id);
+  toastStore.show('Запись удалена', 'info');
+}
 
 const brokenImagesIndices = ref<Set<number>>(new Set());
 

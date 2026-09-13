@@ -2,6 +2,7 @@
   <Teleport to="body">
     <div
       v-if="modelValue"
+      v-bind="$attrs"
       class="fixed inset-0 z-50 flex flex-col justify-end"
     >
       <!-- 1. Отдельное фоновое затемнение с плавной анимацией прозрачности fade -->

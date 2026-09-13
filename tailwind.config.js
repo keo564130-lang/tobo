@@ -7,6 +7,18 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
+      zIndex: {
+        '60': '60',
+        '70': '70',
+        '80': '80',
+        '90': '90',
+        '100': '100',
+        '150': '150',
+        'modal': '1000',
+        'cropper': '1500',
+        'lightbox': '2000',
+        'toast': '3000'
+      },
       fontFamily: {
         sans: ['"Google Sans"', '"Google Sans Text"', '"Roboto Flex"', 'Roboto', '-apple-system', 'sans-serif'],
         mono: ['"Roboto Mono"', 'monospace'],

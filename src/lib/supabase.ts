@@ -245,6 +245,20 @@ class LocalDataStore {
     return newPost;
   }
 
+  getPost(postId: string): Post | undefined {
+    return this.posts.find(p => p.id === postId);
+  }
+
+  deletePost(postId: string): boolean {
+    const initialLen = this.posts.length;
+    this.posts = this.posts.filter(p => p.id !== postId);
+    this.comments = this.comments.filter(c => c.post_id !== postId);
+    this.persist(STORAGE_KEYS.POSTS, this.posts);
+    this.persist(STORAGE_KEYS.COMMENTS, this.comments);
+    this.notify('post_deleted', { postId });
+    return this.posts.length < initialLen;
+  }
+
   toggleLikePost(postId: string): { isLiked: boolean; count: number } {
     const post = this.posts.find(p => p.id === postId);
     if (!post) throw new Error('Пост не найден');
@@ -382,6 +396,7 @@ class LocalDataStore {
     voice_duration?: number;
     voice_wave?: number[];
     forwarded_post_id?: string | null;
+    forwarded_post?: Post | null;
   }): Message {
     const chat = this.chats.find(c => c.id === params.chat_id);
     if (!chat) throw new Error('Чат не найден');
@@ -398,6 +413,7 @@ class LocalDataStore {
       voice_duration: params.voice_duration,
       voice_wave: params.voice_wave,
       forwarded_post_id: params.forwarded_post_id,
+      forwarded_post: params.forwarded_post || (params.forwarded_post_id ? this.posts.find(p => p.id === params.forwarded_post_id) : null),
       is_read: false,
       created_at: new Date().toISOString()
     };
@@ -461,6 +477,28 @@ class LocalDataStore {
       }
       this.notify('messages_read', { chatId });
     }
+  }
+
+  deleteMessage(chatId: string, messageId: string): boolean {
+    const msgs = this.messages.get(chatId);
+    if (msgs) {
+      const initialLen = msgs.length;
+      const filtered = msgs.filter(m => m.id !== messageId);
+      this.messages.set(chatId, filtered);
+      const chat = this.chats.find(c => c.id === chatId);
+      if (chat && chat.last_message?.id === messageId) {
+        chat.last_message = filtered[filtered.length - 1] || undefined;
+      }
+      const serializedMessages: Record<string, Message[]> = {};
+      this.messages.forEach((mList, id) => {
+        serializedMessages[id] = mList;
+      });
+      this.persist(STORAGE_KEYS.MESSAGES, serializedMessages);
+      this.persist(STORAGE_KEYS.CHATS, this.chats);
+      this.notify('message_deleted', { chatId, messageId });
+      return filtered.length < initialLen;
+    }
+    return false;
   }
 
   // --- Blocked Users & Reporting ---

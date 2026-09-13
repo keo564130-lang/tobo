@@ -47,8 +47,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import type { Post, PostComment } from '@/types/database';
+import { ref, computed, watch } from 'vue';
+import type { Post } from '@/types/database';
 import M3BottomSheet from '@/components/ui/M3BottomSheet.vue';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
 import M3Button from '@/components/ui/M3Button.vue';
@@ -67,14 +67,15 @@ defineEmits<{
 const feedStore = useFeedStore();
 const toastStore = useToastStore();
 
-const comments = ref<PostComment[]>([]);
 const commentText = ref('');
 
+const comments = computed(() => (props.post ? feedStore.commentsMap[props.post.id] || [] : []));
+
 watch(
-  () => props.post,
-  (newPost) => {
-    if (newPost) {
-      comments.value = feedStore.getComments(newPost.id);
+  () => [props.modelValue, props.post],
+  ([isOpen, currentPost]) => {
+    if (isOpen && currentPost) {
+      feedStore.getComments((currentPost as Post).id);
     }
   },
   { immediate: true }
@@ -88,9 +89,11 @@ function formatTime(iso: string) {
 async function submitComment() {
   if (!props.post || !commentText.value.trim()) return;
 
-  await feedStore.addComment(props.post.id, commentText.value.trim());
-  comments.value = feedStore.getComments(props.post.id);
+  const postId = props.post.id;
+  const text = commentText.value.trim();
   commentText.value = '';
+
+  await feedStore.addComment(postId, text);
   toastStore.show('Комментарий добавлен', 'success');
 }
 </script>

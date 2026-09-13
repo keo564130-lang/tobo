@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="modelValue" class="fixed inset-0 z-70 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div v-if="modelValue" class="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
       <div class="w-full max-w-md rounded-4xl bg-surface-lowest border border-surface-high/60 p-6 shadow-elevation-4 flex flex-col items-center">
         <!-- Шапка -->
         <div class="w-full flex items-center justify-between mb-4">

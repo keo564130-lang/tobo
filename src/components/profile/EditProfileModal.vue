@@ -1,5 +1,6 @@
 <template>
   <M3BottomSheet
+    v-show="!showCropperModal && !showCoverCropperModal"
     :model-value="modelValue"
     title="Редактировать профиль"
     @update:model-value="$emit('update:modelValue', $event)"
@@ -138,21 +139,21 @@
         </M3Button>
       </div>
     </div>
-
-    <!-- Круглый видоискатель-кроппер миниатюры аватара -->
-    <AvatarCropperModal
-      v-model="showCropperModal"
-      :image-src="cropperImageSrc"
-      @crop-complete="handleCropComplete"
-    />
-
-    <!-- Прямоугольный видоискатель-кроппер обложки -->
-    <CoverCropperModal
-      v-model="showCoverCropperModal"
-      :image-src="coverCropperImageSrc"
-      @crop-complete="handleCoverCropComplete"
-    />
   </M3BottomSheet>
+
+  <!-- Круглый видоискатель-кроппер миниатюры аватара -->
+  <AvatarCropperModal
+    v-model="showCropperModal"
+    :image-src="cropperImageSrc"
+    @crop-complete="handleCropComplete"
+  />
+
+  <!-- Прямоугольный видоискатель-кроппер обложки -->
+  <CoverCropperModal
+    v-model="showCoverCropperModal"
+    :image-src="coverCropperImageSrc"
+    @crop-complete="handleCoverCropComplete"
+  />
 </template>
 
 <script setup lang="ts">

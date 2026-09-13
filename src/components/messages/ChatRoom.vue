@@ -112,64 +112,81 @@
         :class="msg.sender_id === authStore.user.id ? 'items-end' : 'items-start'"
       >
         <div
-          class="max-w-[85%] sm:max-w-[72%] rounded-3xl p-3.5 transition-all shadow-xs"
-          :class="[
-            msg.sender_id === authStore.user.id
-              ? 'bg-primary-container text-primary-onContainer rounded-br-xs'
-              : 'bg-surface-lowest text-surface-on rounded-bl-xs border border-surface-high/60'
-          ]"
+          class="group relative flex items-center gap-1.5 max-w-[85%] sm:max-w-[72%]"
+          :class="msg.sender_id === authStore.user.id ? 'flex-row' : 'flex-row-reverse'"
         >
-          <!-- Имя отправителя в группе/канале -->
-          <div
-            v-if="msg.sender_id !== authStore.user.id && (chat?.type === 'group' || chat?.type === 'channel')"
-            class="text-[11px] font-bold text-primary mb-1"
+          <!-- Кнопка удаления сообщения для автора или разработчика -->
+          <button
+            v-if="canDeleteMessage(msg)"
+            type="button"
+            aria-label="Удалить сообщение"
+            title="Удалить сообщение"
+            class="opacity-0 group-hover:opacity-100 max-sm:opacity-60 transition-opacity text-surface-onVariant/40 hover:text-rose-500 text-xs p-1 cursor-pointer rounded-full hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center justify-center shrink-0"
+            @click.stop="confirmDeleteMessage(msg)"
           >
-            {{ msg.sender?.first_name || 'Участник' }}
-          </div>
+            <span class="material-symbols-rounded text-base">delete</span>
+          </button>
 
-          <!-- Голосовое сообщение с волной -->
-          <VoiceMessagePlayer
-            v-if="msg.voice_wave || msg.voice_url"
-            :duration="msg.voice_duration || 5"
-            :wave="msg.voice_wave"
-          />
-
-          <!-- Сохраненный пост из Ленты с интерактивной карточкой-превью! -->
           <div
-            v-if="msg.forwarded_post"
-            class="mt-1 mb-2 p-3 rounded-2xl bg-surface-low/80 border border-surface-high/60 cursor-pointer hover:opacity-90"
-            @click="goToPost(msg.forwarded_post.id)"
+            class="w-full rounded-3xl p-3.5 transition-all shadow-xs"
+            :class="[
+              msg.sender_id === authStore.user.id
+                ? 'bg-primary-container text-primary-onContainer rounded-br-xs'
+                : 'bg-surface-lowest text-surface-on rounded-bl-xs border border-surface-high/60'
+            ]"
           >
-            <div class="flex items-center gap-1.5 mb-1.5">
-              <span class="material-symbols-rounded text-xs text-primary">bookmark</span>
-              <span class="text-[10px] font-bold text-primary uppercase tracking-wider">
-                Сохранённая запись
-              </span>
-              <span class="text-[10px] text-surface-onVariant/60">• @{{ msg.forwarded_post.author?.username }}</span>
+            <!-- Имя отправителя в группе/канале -->
+            <div
+              v-if="msg.sender_id !== authStore.user.id && (chat?.type === 'group' || chat?.type === 'channel')"
+              class="text-[11px] font-bold text-primary mb-1"
+            >
+              {{ msg.sender?.first_name || 'Участник' }}
             </div>
-            <p class="text-xs text-surface-on line-clamp-2 leading-relaxed">
-              {{ msg.forwarded_post.content }}
-            </p>
-          </div>
 
-          <!-- Текст сообщения -->
-          <div v-if="msg.content" class="text-sm whitespace-pre-wrap leading-relaxed select-text">
-            {{ msg.content }}
-          </div>
+            <!-- Голосовое сообщение с волной -->
+            <VoiceMessagePlayer
+              v-if="msg.voice_wave || msg.voice_url"
+              :duration="msg.voice_duration || 5"
+              :wave="msg.voice_wave"
+            />
 
-          <!-- Время и статусы доставки (одна / две галочки) -->
-          <div class="flex items-center justify-end gap-1 mt-1 text-[10px] text-surface-onVariant/70 font-mono">
-            <span>{{ formatTime(msg.created_at) }}</span>
-            <template v-if="msg.sender_id === authStore.user.id">
-              <!-- Две галочки: Прочитано -->
-              <span v-if="msg.is_read" class="material-symbols-rounded text-xs text-primary font-bold">
-                done_all
-              </span>
-              <!-- Одна галочка: Отправлено -->
-              <span v-else class="material-symbols-rounded text-xs text-surface-onVariant/50">
-                check
-              </span>
-            </template>
+            <!-- Сохраненный пост из Ленты с интерактивной карточкой-превью! -->
+            <div
+              v-if="msg.forwarded_post"
+              class="mt-1 mb-2 p-3 rounded-2xl bg-surface-low/80 border border-surface-high/60 cursor-pointer hover:opacity-90"
+              @click="goToPost(msg.forwarded_post.id)"
+            >
+              <div class="flex items-center gap-1.5 mb-1.5">
+                <span class="material-symbols-rounded text-xs text-primary">bookmark</span>
+                <span class="text-[10px] font-bold text-primary uppercase tracking-wider">
+                  Сохранённая запись
+                </span>
+                <span class="text-[10px] text-surface-onVariant/60">• @{{ msg.forwarded_post.author?.username }}</span>
+              </div>
+              <p class="text-xs text-surface-on line-clamp-2 leading-relaxed">
+                {{ msg.forwarded_post.content }}
+              </p>
+            </div>
+
+            <!-- Текст сообщения -->
+            <div v-if="msg.content" class="text-sm whitespace-pre-wrap leading-relaxed select-text">
+              {{ msg.content }}
+            </div>
+
+            <!-- Время и статусы доставки (одна / две галочки) -->
+            <div class="flex items-center justify-end gap-1 mt-1 text-[10px] text-surface-onVariant/70 font-mono">
+              <span>{{ formatTime(msg.created_at) }}</span>
+              <template v-if="msg.sender_id === authStore.user.id">
+                <!-- Две галочки: Прочитано -->
+                <span v-if="msg.is_read" class="material-symbols-rounded text-xs text-primary font-bold">
+                  done_all
+                </span>
+                <!-- Одна галочка: Отправлено -->
+                <span v-else class="material-symbols-rounded text-xs text-surface-onVariant/50">
+                  check
+                </span>
+              </template>
+            </div>
           </div>
         </div>
       </div>
@@ -269,13 +286,50 @@
       v-model="showChannelModal"
       :chat="chat"
     />
+
+    <!-- Подтверждение удаления сообщения -->
+    <Teleport to="body">
+      <div
+        v-if="showDeleteMessageConfirm"
+        class="fixed inset-0 z-modal bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+        @click.self="showDeleteMessageConfirm = false"
+      >
+        <div class="w-full max-w-sm rounded-3xl bg-surface-lowest border border-surface-high/60 p-5 shadow-elevation-3 flex flex-col gap-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+              <span class="material-symbols-rounded text-2xl">delete_forever</span>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-surface-on">Удалить сообщение?</h3>
+              <p class="text-xs text-surface-onVariant/80 mt-0.5">Это действие необратимо.</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              class="px-4 py-2 rounded-full text-xs font-semibold text-surface-on hover:bg-surface-high transition-colors cursor-pointer"
+              @click="showDeleteMessageConfirm = false; messageToDelete = null"
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              class="px-4 py-2 rounded-full bg-rose-500 text-white text-xs font-bold hover:bg-rose-600 active:scale-95 transition-all shadow-xs cursor-pointer"
+              @click="executeDeleteMessage"
+            >
+              Удалить
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import type { Chat, Profile } from '@/types/database';
+import type { Chat, Message, Profile } from '@/types/database';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
 import VoiceMessagePlayer from '@/components/messages/VoiceMessagePlayer.vue';
 import VoiceRecorder from '@/components/messages/VoiceRecorder.vue';
@@ -455,4 +509,27 @@ watch(
     scrollToBottom();
   }
 );
+
+function canDeleteMessage(msg: Message) {
+  if (!authStore.user?.id) return false;
+  return msg.sender_id === authStore.user.id || authStore.isDeveloper;
+}
+
+const showDeleteMessageConfirm = ref(false);
+const messageToDelete = ref<Message | null>(null);
+
+function confirmDeleteMessage(msg: Message) {
+  messageToDelete.value = msg;
+  showDeleteMessageConfirm.value = true;
+}
+
+async function executeDeleteMessage() {
+  if (!messageToDelete.value || !chat.value) return;
+  const msgId = messageToDelete.value.id;
+  const chatId = chat.value.id;
+  showDeleteMessageConfirm.value = false;
+  messageToDelete.value = null;
+  await chatStore.deleteMessage(chatId, msgId);
+  toastStore.show('Сообщение удалено', 'info');
+}
 </script>

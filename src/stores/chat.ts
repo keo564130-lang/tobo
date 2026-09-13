@@ -5,7 +5,7 @@
 
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { Chat, Message, ChatType, BlockedUser } from '@/types/database';
+import type { Chat, Message, ChatType, BlockedUser, Post } from '@/types/database';
 import { localStore, supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 export const useChatStore = defineStore('chat', () => {
@@ -89,14 +89,17 @@ export const useChatStore = defineStore('chat', () => {
   });
 
   async function sendMessage(params: {
+    chat_id?: string;
     content?: string;
     media_urls?: string[];
     voice_url?: string;
     voice_duration?: number;
     voice_wave?: number[];
     forwarded_post_id?: string | null;
+    forwarded_post?: Post | null;
   }) {
-    if (!activeChatId.value) return;
+    const targetChatId = params.chat_id || activeChatId.value;
+    if (!targetChatId) return;
 
     // Supabase режим
     if (isSupabaseConfigured() && supabase) {
@@ -105,19 +108,26 @@ export const useChatStore = defineStore('chat', () => {
         if (!authUser) return;
 
         const { data, error } = await supabase.from('messages').insert({
-          chat_id: activeChatId.value,
+          chat_id: targetChatId,
           sender_id: authUser.id,
           content: params.content,
           media_urls: params.media_urls || [],
           voice_url: params.voice_url,
           voice_duration: params.voice_duration,
           voice_wave: params.voice_wave,
-          forwarded_post_id: params.forwarded_post_id
+          forwarded_post_id: params.forwarded_post_id || params.forwarded_post?.id || null
         }).select('*, sender:profiles(*)').single();
 
         if (!error && data) {
-          activeMessages.value.push(data);
+          const formattedMsg: Message = {
+            ...data,
+            forwarded_post: params.forwarded_post || null
+          };
+          if (targetChatId === activeChatId.value) {
+            activeMessages.value.push(formattedMsg);
+          }
           await refreshChats();
+          return formattedMsg;
         }
       } catch (err) {
         console.warn('Supabase message insert failed:', err);
@@ -127,22 +137,26 @@ export const useChatStore = defineStore('chat', () => {
 
     // Офлайн-режим
     const newMsg = localStore.sendMessage({
-      chat_id: activeChatId.value,
-      ...params
+      chat_id: targetChatId,
+      ...params,
+      forwarded_post_id: params.forwarded_post_id || params.forwarded_post?.id || null,
+      forwarded_post: params.forwarded_post || null
     });
 
-    activeMessages.value = localStore.getMessages(activeChatId.value);
+    if (targetChatId === activeChatId.value) {
+      activeMessages.value = localStore.getMessages(targetChatId);
+    }
     refreshChats();
 
     // Эмуляция индикатора набора ответа собеседником (в диалоге с Мишей только в офлайн режиме)
-    if (activeChatId.value === 'chat-direct-misha-003') {
+    if (targetChatId === 'chat-direct-misha-003') {
       setTimeout(() => {
         isPeerTyping.value = true;
       }, 500);
       setTimeout(() => {
         isPeerTyping.value = false;
-        if (activeChatId.value === 'chat-direct-misha-003') {
-          activeMessages.value = localStore.getMessages(activeChatId.value);
+        if (targetChatId === 'chat-direct-misha-003') {
+          activeMessages.value = localStore.getMessages(targetChatId);
           refreshChats();
         }
       }, 1600);
@@ -239,10 +253,30 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  async function deleteMessage(chatId: string, messageId: string): Promise<boolean> {
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { error } = await supabase.from('messages').delete().eq('id', messageId);
+        if (error) {
+          console.warn('Supabase deleteMessage error:', error);
+          return false;
+        }
+      } catch (err) {
+        console.warn('Supabase deleteMessage error:', err);
+        return false;
+      }
+    } else {
+      localStore.deleteMessage(chatId, messageId);
+    }
+    activeMessages.value = activeMessages.value.filter(m => m.id !== messageId);
+    await refreshChats();
+    return true;
+  }
+
   // Локальная подписка только в офлайн режиме
   localStore.subscribe((event) => {
     if (!isSupabaseConfigured()) {
-      if (event.type === 'new_message' || event.type === 'new_chat' || event.type === 'messages_read') {
+      if (event.type === 'new_message' || event.type === 'new_chat' || event.type === 'messages_read' || event.type === 'message_deleted') {
         refreshChats();
         if (activeChatId.value) {
           activeMessages.value = localStore.getMessages(activeChatId.value);
@@ -261,6 +295,7 @@ export const useChatStore = defineStore('chat', () => {
     refreshChats,
     selectChat,
     sendMessage,
+    deleteMessage,
     createChat,
     blockUser,
     unblockUser,
