@@ -427,7 +427,7 @@ export const useChatStore = defineStore('chat', () => {
     return newChat;
   }
 
-  async function createGroupChat(title: string, memberIds: string[] = [], description?: string): Promise<Chat | null> {
+  async function createGroupChat(title: string, memberIds: string[] = [], description?: string, avatarUrl?: string): Promise<Chat | null> {
     let currentUserId = authStore.user?.id;
 
     if (isSupabaseConfigured() && supabase) {
@@ -440,6 +440,7 @@ export const useChatStore = defineStore('chat', () => {
             type: 'group',
             title,
             description,
+            avatar_url: avatarUrl,
             created_by: currentUserId
           }).select().single();
 
@@ -467,6 +468,7 @@ export const useChatStore = defineStore('chat', () => {
               type: 'group',
               title,
               description,
+              avatar_url: avatarUrl,
               created_by: currentUserId,
               created_at: chatData.created_at || new Date().toISOString(),
               members_count: 1 + otherIds.length,
@@ -494,7 +496,7 @@ export const useChatStore = defineStore('chat', () => {
       }
     }
 
-    const newChat = localStore.createChat('group', title, description);
+    const newChat = localStore.createChat('group', title, description, avatarUrl);
     const existingIdx = chats.value.findIndex(c => c.id === newChat.id);
     if (existingIdx === -1) {
       chats.value.unshift(newChat);
@@ -507,7 +509,7 @@ export const useChatStore = defineStore('chat', () => {
     return newChat;
   }
 
-  async function createChannel(title: string, description?: string): Promise<Chat | null> {
+  async function createChannel(title: string, description?: string, avatarUrl?: string): Promise<Chat | null> {
     let currentUserId = authStore.user?.id;
 
     if (isSupabaseConfigured() && supabase) {
@@ -520,6 +522,7 @@ export const useChatStore = defineStore('chat', () => {
             type: 'channel',
             title,
             description,
+            avatar_url: avatarUrl,
             created_by: currentUserId
           }).select().single();
 
@@ -536,6 +539,7 @@ export const useChatStore = defineStore('chat', () => {
               type: 'channel',
               title,
               description,
+              avatar_url: avatarUrl,
               created_by: currentUserId,
               created_at: chatData.created_at || new Date().toISOString(),
               members_count: 1,
@@ -564,7 +568,7 @@ export const useChatStore = defineStore('chat', () => {
       }
     }
 
-    const newChat = localStore.createChat('channel', title, description);
+    const newChat = localStore.createChat('channel', title, description, avatarUrl);
     const existingIdx = chats.value.findIndex(c => c.id === newChat.id);
     if (existingIdx === -1) {
       chats.value.unshift(newChat);

@@ -163,6 +163,39 @@
       <!-- B) ГРУППА (type === 'group')                                      -->
       <!-- ================================================================= -->
       <template v-else-if="type === 'group'">
+        <!-- Выбор аватарки группы -->
+        <div class="flex items-center gap-3.5 mb-1">
+          <div class="relative shrink-0">
+            <div
+              class="w-16 h-16 rounded-full overflow-hidden bg-surface-low border-2 border-dashed border-surface-high hover:border-primary flex items-center justify-center cursor-pointer transition-all m3-press-effect group"
+              @click="avatarFileInput?.click()"
+            >
+              <img
+                v-if="chatAvatarUrl"
+                :src="chatAvatarUrl"
+                alt="Аватар группы"
+                class="w-full h-full object-cover"
+              />
+              <div v-else class="flex flex-col items-center justify-center text-surface-onVariant/60 group-hover:text-primary transition-colors">
+                <span class="material-symbols-rounded text-2xl">add_a_photo</span>
+              </div>
+            </div>
+            <button
+              v-if="chatAvatarUrl"
+              type="button"
+              class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-surface-high hover:bg-rose-500 hover:text-white text-surface-onVariant flex items-center justify-center transition-colors cursor-pointer"
+              title="Удалить фото"
+              @click.stop="chatAvatarUrl = ''"
+            >
+              <span class="material-symbols-rounded text-xs">close</span>
+            </button>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-xs font-semibold text-surface-on">Аватарка группы</span>
+            <span class="text-[11px] text-surface-onVariant/70">Нажмите, чтобы выбрать и кадрировать фото</span>
+          </div>
+        </div>
+
         <div>
           <label for="group_title" class="block text-xs font-semibold text-surface-on mb-1.5 cursor-pointer">
             Название группы
@@ -264,9 +297,43 @@
       </template>
 
       <!-- ================================================================= -->
+      <!-- ================================================================= -->
       <!-- C) КАНАЛ (type === 'channel')                                     -->
       <!-- ================================================================= -->
       <template v-else-if="type === 'channel'">
+        <!-- Выбор аватарки канала -->
+        <div class="flex items-center gap-3.5 mb-1">
+          <div class="relative shrink-0">
+            <div
+              class="w-16 h-16 rounded-full overflow-hidden bg-surface-low border-2 border-dashed border-surface-high hover:border-primary flex items-center justify-center cursor-pointer transition-all m3-press-effect group"
+              @click="avatarFileInput?.click()"
+            >
+              <img
+                v-if="chatAvatarUrl"
+                :src="chatAvatarUrl"
+                alt="Аватар канала"
+                class="w-full h-full object-cover"
+              />
+              <div v-else class="flex flex-col items-center justify-center text-surface-onVariant/60 group-hover:text-primary transition-colors">
+                <span class="material-symbols-rounded text-2xl">add_a_photo</span>
+              </div>
+            </div>
+            <button
+              v-if="chatAvatarUrl"
+              type="button"
+              class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-surface-high hover:bg-rose-500 hover:text-white text-surface-onVariant flex items-center justify-center transition-colors cursor-pointer"
+              title="Удалить фото"
+              @click.stop="chatAvatarUrl = ''"
+            >
+              <span class="material-symbols-rounded text-xs">close</span>
+            </button>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-xs font-semibold text-surface-on">Аватарка канала</span>
+            <span class="text-[11px] text-surface-onVariant/70">Нажмите, чтобы выбрать и кадрировать фото</span>
+          </div>
+        </div>
+
         <div>
           <label for="channel_title" class="block text-xs font-semibold text-surface-on mb-1.5 cursor-pointer">
             Название канала
@@ -310,6 +377,22 @@
         </div>
       </template>
     </div>
+
+    <!-- Скрытый инпут выбора файла для аватарки группы или канала -->
+    <input
+      ref="avatarFileInput"
+      type="file"
+      accept="image/*"
+      class="hidden"
+      @change="handleAvatarFileSelect"
+    />
+
+    <!-- Модалка кадрирования аватарки -->
+    <AvatarCropperModal
+      v-model="showCropperModal"
+      :image-src="cropperImageSrc"
+      @crop-complete="handleCropComplete"
+    />
   </M3BottomSheet>
 </template>
 
@@ -319,6 +402,7 @@ import type { ChatType, Profile } from '@/types/database';
 import M3BottomSheet from '@/components/ui/M3BottomSheet.vue';
 import M3Button from '@/components/ui/M3Button.vue';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
+import AvatarCropperModal from '@/components/profile/AvatarCropperModal.vue';
 import { useChatStore } from '@/stores/chat';
 import { useToastStore } from '@/stores/toast';
 
@@ -338,6 +422,31 @@ const toastStore = useToastStore();
 const title = ref('');
 const description = ref('');
 const isSubmitting = ref(false);
+
+// Аватарка для группы / канала
+const chatAvatarUrl = ref('');
+const showCropperModal = ref(false);
+const cropperImageSrc = ref('');
+const avatarFileInput = ref<HTMLInputElement | null>(null);
+
+function handleAvatarFileSelect(event: Event) {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    cropperImageSrc.value = reader.result as string;
+    showCropperModal.value = true;
+  };
+  reader.readAsDataURL(file);
+  target.value = '';
+}
+
+function handleCropComplete(result: string | { base64: string; blob?: Blob }) {
+  const base64 = typeof result === 'string' ? result : result.base64;
+  chatAvatarUrl.value = base64;
+}
 
 // Поля для личного диалога
 const searchQuery = ref('');
@@ -368,6 +477,7 @@ const modalTitle = computed(() => {
 function resetForm() {
   title.value = '';
   description.value = '';
+  chatAvatarUrl.value = '';
   searchQuery.value = '';
   searchResults.value = [];
   selectedUser.value = null;
@@ -529,7 +639,8 @@ async function submitGroupChat() {
     await chatStore.createGroupChat(
       title.value.trim(),
       memberIds,
-      description.value.trim() || undefined
+      description.value.trim() || undefined,
+      chatAvatarUrl.value || undefined
     );
     toastStore.show('Группа успешно создана', 'success');
     closeModal();
@@ -548,7 +659,8 @@ async function submitChannel() {
   try {
     await chatStore.createChannel(
       title.value.trim(),
-      description.value.trim() || undefined
+      description.value.trim() || undefined,
+      chatAvatarUrl.value || undefined
     );
     toastStore.show('Канал успешно создан', 'success');
     closeModal();

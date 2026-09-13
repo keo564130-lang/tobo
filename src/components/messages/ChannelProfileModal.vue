@@ -267,6 +267,13 @@
         </div>
       </div>
     </div>
+
+    <!-- Модалка круглого кроппера аватара канала -->
+    <AvatarCropperModal
+      v-model="showCropperModal"
+      :image-src="cropperImageSrc"
+      @crop-complete="handleCropComplete"
+    />
   </M3BottomSheet>
 </template>
 
@@ -276,6 +283,7 @@ import type { Chat } from '@/types/database';
 import M3BottomSheet from '@/components/ui/M3BottomSheet.vue';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
 import M3Button from '@/components/ui/M3Button.vue';
+import AvatarCropperModal from '@/components/profile/AvatarCropperModal.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useChatStore } from '@/stores/chat';
 import { useToastStore } from '@/stores/toast';
@@ -332,25 +340,34 @@ function copyLink() {
   toastStore.show('Ссылка на канал скопирована в буфер', 'success');
 }
 
-// Загрузка аватарки канала
-async function handleAvatarUpload(event: Event) {
+// Загрузка аватарки канала через круглый кроппер
+const showCropperModal = ref(false);
+const cropperImageSrc = ref('');
+
+function handleAvatarUpload(event: Event) {
   const target = event.target as HTMLInputElement;
   const file = target.files?.[0];
-  if (!file || !props.chat) return;
+  if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = async () => {
-    const newUrl = reader.result as string;
-    try {
-      await chatStore.updateChat(props.chat!.id, { avatar_url: newUrl });
-      toastStore.show('Аватарка обновлена', 'success');
-    } catch (err) {
-      console.error(err);
-      toastStore.show('Не удалось обновить аватарку', 'error');
-    }
+  reader.onload = () => {
+    cropperImageSrc.value = reader.result as string;
+    showCropperModal.value = true;
   };
   reader.readAsDataURL(file);
   target.value = '';
+}
+
+async function handleCropComplete(result: string | { base64: string; blob?: Blob }) {
+  const base64 = typeof result === 'string' ? result : result.base64;
+  if (!props.chat?.id || !base64) return;
+  try {
+    await chatStore.updateChat(props.chat.id, { avatar_url: base64 });
+    toastStore.show('Аватарка канала успешно обновлена!', 'success');
+  } catch (err) {
+    console.error(err);
+    toastStore.show('Не удалось обновить аватарку', 'error');
+  }
 }
 
 // Сохранение настроек канала

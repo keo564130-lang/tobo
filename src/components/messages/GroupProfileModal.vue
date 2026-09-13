@@ -138,6 +138,13 @@
         </button>
       </div>
     </div>
+
+    <!-- Модалка круглого кроппера аватара группы -->
+    <AvatarCropperModal
+      v-model="showCropperModal"
+      :image-src="cropperImageSrc"
+      @crop-complete="handleCropComplete"
+    />
   </M3BottomSheet>
 </template>
 
@@ -146,6 +153,7 @@ import { ref, computed, watch } from 'vue';
 import type { Chat, ChatMember, Profile } from '@/types/database';
 import M3BottomSheet from '@/components/ui/M3BottomSheet.vue';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
+import AvatarCropperModal from '@/components/profile/AvatarCropperModal.vue';
 import { currentUserMock, mishaProfileMock, annaProfileMock, toboOfficialProfileMock } from '@/lib/mockData';
 import { useToastStore } from '@/stores/toast';
 import { useAuthStore } from '@/stores/auth';
@@ -170,25 +178,33 @@ const canEdit = computed(() => {
 });
 
 const avatarFileInput = ref<HTMLInputElement | null>(null);
+const showCropperModal = ref(false);
+const cropperImageSrc = ref('');
 
-async function uploadAvatar(event: Event) {
+function uploadAvatar(event: Event) {
   const target = event.target as HTMLInputElement;
   const file = target.files?.[0];
-  if (!file || !props.chat) return;
+  if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = async () => {
-    const newUrl = reader.result as string;
-    try {
-      await chatStore.updateChat(props.chat!.id, { avatar_url: newUrl });
-      toastStore.show('Аватарка обновлена', 'success');
-    } catch (err) {
-      console.error(err);
-      toastStore.show('Не удалось обновить аватарку', 'error');
-    }
+  reader.onload = () => {
+    cropperImageSrc.value = reader.result as string;
+    showCropperModal.value = true;
   };
   reader.readAsDataURL(file);
   target.value = '';
+}
+
+async function handleCropComplete(result: string | { base64: string; blob?: Blob }) {
+  const base64 = typeof result === 'string' ? result : result.base64;
+  if (!props.chat?.id || !base64) return;
+  try {
+    await chatStore.updateChat(props.chat.id, { avatar_url: base64 });
+    toastStore.show('Аватарка группы успешно обновлена!', 'success');
+  } catch (err) {
+    console.error(err);
+    toastStore.show('Не удалось обновить аватарку', 'error');
+  }
 }
 
 const currentView = ref<'info' | 'add'>('info');
