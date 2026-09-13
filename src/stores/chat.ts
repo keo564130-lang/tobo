@@ -67,6 +67,7 @@ export const useChatStore = defineStore('chat', () => {
             title: c.title,
             avatar_url: c.avatar_url,
             description: c.description,
+            settings: c.settings,
             created_by: c.created_by,
             created_at: c.created_at,
             members_count: c.chat_members?.length || 1,

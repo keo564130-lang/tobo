@@ -169,9 +169,12 @@ CREATE TABLE IF NOT EXISTS public.chats (
     title TEXT,
     avatar_url TEXT,
     description TEXT,
+    settings JSONB DEFAULT '{"disable_comments": false, "allow_reactions": true, "can_post_role": "admins", "is_public": true}'::jsonb,
     created_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_chats_settings ON public.chats USING gin (settings);
 
 ALTER TABLE public.chats ENABLE ROW LEVEL SECURITY;
 
@@ -188,6 +191,14 @@ CREATE INDEX IF NOT EXISTS idx_chat_members_user ON public.chat_members(user_id)
 ALTER TABLE public.chat_members ENABLE ROW LEVEL SECURITY;
 
 -- Вспомогательные функции с SECURITY DEFINER для исключения бесконечной рекурсии в RLS
+CREATE OR REPLACE FUNCTION public.is_chat_creator(_chat_id UUID, _user_id UUID)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM public.chats 
+        WHERE id = _chat_id AND created_by = _user_id
+    );
+$$;
+
 CREATE OR REPLACE FUNCTION public.is_chat_member(_chat_id UUID, _user_id UUID)
 RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER AS $$
     SELECT EXISTS (
@@ -198,9 +209,16 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.is_chat_admin(_chat_id UUID, _user_id UUID)
 RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER AS $$
-    SELECT EXISTS (
-        SELECT 1 FROM public.chat_members 
-        WHERE chat_id = _chat_id AND user_id = _user_id AND role IN ('owner', 'admin')
+    SELECT (
+        EXISTS (
+            SELECT 1 FROM public.chats 
+            WHERE id = _chat_id AND created_by = _user_id
+        )
+        OR
+        EXISTS (
+            SELECT 1 FROM public.chat_members 
+            WHERE chat_id = _chat_id AND user_id = _user_id AND role IN ('owner', 'admin')
+        )
     );
 $$;
 
@@ -208,6 +226,7 @@ CREATE POLICY "Пользователь видит только те чаты, �
     ON public.chats FOR SELECT 
     USING (
         type = 'channel' OR
+        created_by = auth.uid() OR
         public.is_chat_member(id, auth.uid())
     );
 
@@ -223,6 +242,7 @@ CREATE POLICY "Участники чатов видны членам чата (�
     ON public.chat_members FOR SELECT 
     USING (
         user_id = auth.uid() OR
+        public.is_chat_creator(chat_id, auth.uid()) OR
         EXISTS (
             SELECT 1 FROM public.chats c
             WHERE c.id = chat_members.chat_id AND (
@@ -232,21 +252,26 @@ CREATE POLICY "Участники чатов видны членам чата (�
         )
     );
 
-CREATE POLICY "Добавлять участников могут админы или пользователи в личный диалог" 
+CREATE POLICY "Разрешить добавление участников в чат" 
     ON public.chat_members FOR INSERT 
     WITH CHECK (
         auth.uid() = user_id OR
-        public.is_chat_admin(chat_id, auth.uid()) OR
-        EXISTS (
-            SELECT 1 FROM public.chats c 
-            WHERE c.id = chat_members.chat_id AND c.created_by = auth.uid()
-        )
+        public.is_chat_creator(chat_id, auth.uid()) OR
+        public.is_chat_admin(chat_id, auth.uid())
+    );
+
+CREATE POLICY "Обновлять участников могут создатели и админы" 
+    ON public.chat_members FOR UPDATE 
+    USING (
+        public.is_chat_creator(chat_id, auth.uid()) OR
+        public.is_chat_admin(chat_id, auth.uid())
     );
 
 CREATE POLICY "Админы могут удалять участников или участник может покинуть чат сам" 
     ON public.chat_members FOR DELETE 
     USING (
         auth.uid() = user_id OR
+        public.is_chat_creator(chat_id, auth.uid()) OR
         public.is_chat_admin(chat_id, auth.uid())
     );
 
@@ -428,23 +453,29 @@ $$;
 -- 9. ТРИГГЕРЫ: АВТОМАТИЧЕСКИЙ BOOTSTRAP ПОЛЬЗОВАТЕЛЯ
 -- ------------------------------------------------------------------------------
 -- При регистрации пользователя:
--- 1. Создается профиль
+-- 1. Создается профиль (с сохранением статуса is_developer)
 -- 2. Автоматически создается персональный чат "Избранное" (type: 'saved')
 -- 3. Пользователь автоматически присоединяется к системному каналу "Канал Разработки"
+--    (разработчикам выдается роль owner, обычным пользователям - member)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
     saved_chat_id UUID;
     dev_channel_id UUID;
+    is_dev BOOLEAN;
 BEGIN
-    -- 1. Создаем профиль
+    is_dev := COALESCE((NEW.raw_user_meta_data->>'is_developer')::boolean, false);
+
+    -- 1. Создаем профиль пользователя
     INSERT INTO public.profiles (
         id, 
         username, 
         first_name, 
         last_name, 
         avatar_url, 
-        bio
+        cover_url,
+        bio,
+        is_developer
     )
     VALUES (
         NEW.id,
@@ -452,18 +483,30 @@ BEGIN
         COALESCE(NEW.raw_user_meta_data->>'first_name', 'Участник'),
         COALESCE(NEW.raw_user_meta_data->>'last_name', ''),
         COALESCE(NEW.raw_user_meta_data->>'avatar_url', ''),
-        'Новый пользователь tobo'
-    );
+        COALESCE(NEW.raw_user_meta_data->>'cover_url', ''),
+        COALESCE(NEW.raw_user_meta_data->>'bio', 'Новый пользователь tobo'),
+        is_dev
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        username = EXCLUDED.username,
+        first_name = EXCLUDED.first_name,
+        last_name = EXCLUDED.last_name,
+        avatar_url = EXCLUDED.avatar_url,
+        cover_url = EXCLUDED.cover_url,
+        bio = EXCLUDED.bio,
+        is_developer = EXCLUDED.is_developer,
+        updated_at = now();
 
-    -- 2. Создаем чат "Избранное"
+    -- 2. Создаем персональный чат "Избранное"
     INSERT INTO public.chats (type, title, description, created_by)
     VALUES ('saved', 'Избранное', 'Ваше персональное облачное хранилище заметок и постов', NEW.id)
     RETURNING id INTO saved_chat_id;
 
     INSERT INTO public.chat_members (chat_id, user_id, role)
-    VALUES (saved_chat_id, NEW.id, 'owner');
+    VALUES (saved_chat_id, NEW.id, 'owner')
+    ON CONFLICT DO NOTHING;
 
-    -- 3. Находим или создаем официальный канал "Канал Разработки"
+    -- 3. Присоединение к официальному каналу "Канал Разработки"
     SELECT id INTO dev_channel_id FROM public.chats WHERE title = 'Канал Разработки' AND type = 'channel' LIMIT 1;
     IF dev_channel_id IS NULL THEN
         INSERT INTO public.chats (type, title, description, created_by)
@@ -471,11 +514,13 @@ BEGIN
         RETURNING id INTO dev_channel_id;
 
         INSERT INTO public.chat_members (chat_id, user_id, role)
-        VALUES (dev_channel_id, NEW.id, 'owner');
+        VALUES (dev_channel_id, NEW.id, 'owner')
+        ON CONFLICT DO NOTHING;
     ELSE
         INSERT INTO public.chat_members (chat_id, user_id, role)
-        VALUES (dev_channel_id, NEW.id, 'member')
-        ON CONFLICT DO NOTHING;
+        VALUES (dev_channel_id, NEW.id, CASE WHEN is_dev THEN 'owner' ELSE 'member' END)
+        ON CONFLICT (chat_id, user_id) DO UPDATE SET
+            role = CASE WHEN is_dev THEN 'owner' ELSE chat_members.role END;
     END IF;
 
     RETURN NEW;
@@ -496,3 +541,67 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.chats;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_members;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.posts;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.comments;
+
+-- ------------------------------------------------------------------------------
+-- 11. ХРАНИЛИЩЕ SUPABASE STORAGE (avatars, covers, media)
+-- ------------------------------------------------------------------------------
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES 
+    ('avatars', 'avatars', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']),
+    ('covers', 'covers', true, 10485760, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']),
+    ('media', 'media', true, 52428800, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'video/mp4'])
+ON CONFLICT (id) DO UPDATE SET 
+    public = EXCLUDED.public,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- RLS-политики на storage.objects
+DROP POLICY IF EXISTS "Public Access for avatars and media" ON storage.objects;
+DROP POLICY IF EXISTS "Public Access for avatars, covers and media" ON storage.objects;
+
+CREATE POLICY "Public Access for avatars, covers and media" 
+ON storage.objects FOR SELECT 
+USING (bucket_id IN ('avatars', 'covers', 'media'));
+
+DROP POLICY IF EXISTS "Authenticated users can upload to avatars" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload to covers" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload avatars and covers" ON storage.objects;
+
+CREATE POLICY "Authenticated users can upload avatars and covers" 
+ON storage.objects FOR INSERT 
+WITH CHECK (
+    bucket_id IN ('avatars', 'covers') 
+    AND auth.role() = 'authenticated'
+);
+
+DROP POLICY IF EXISTS "Authenticated users can upload to media" ON storage.objects;
+
+CREATE POLICY "Authenticated users can upload to media" 
+ON storage.objects FOR INSERT 
+WITH CHECK (
+    bucket_id = 'media' 
+    AND auth.role() = 'authenticated'
+);
+
+DROP POLICY IF EXISTS "Users can update own storage objects" ON storage.objects;
+
+CREATE POLICY "Users can update own storage objects" 
+ON storage.objects FOR UPDATE 
+USING (
+    auth.role() = 'authenticated' AND (
+        auth.uid() = owner OR 
+        (storage.foldername(name))[1] = auth.uid()::text OR
+        owner IS NULL
+    )
+);
+
+DROP POLICY IF EXISTS "Users can delete own storage objects" ON storage.objects;
+
+CREATE POLICY "Users can delete own storage objects" 
+ON storage.objects FOR DELETE 
+USING (
+    auth.role() = 'authenticated' AND (
+        auth.uid() = owner OR 
+        (storage.foldername(name))[1] = auth.uid()::text
+    )
+);

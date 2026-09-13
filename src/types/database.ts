@@ -58,13 +58,21 @@ export interface PostComment {
   created_at: string;
 }
 
+export interface ChatSettings {
+  disable_comments?: boolean;
+  allow_reactions?: boolean;
+  can_post_role?: 'owner' | 'admins' | 'all';
+  is_public?: boolean;
+  [key: string]: any;
+}
+
 export interface Chat {
   id: string;
   type: ChatType;
   title: string;
   avatar_url?: string;
   description?: string;
-  settings?: any;
+  settings?: ChatSettings;
   created_by: string;
   created_at: string;
   last_message?: Message;
