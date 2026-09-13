@@ -147,13 +147,13 @@
           <p class="text-[11px] leading-relaxed text-surface-onVariant">
             tobo находится в стадии открытого альфа-тестирования. Возможны сбои, нестабильная работа и сброс тестовых данных. Регистрируясь, вы соглашаетесь на участие в тестировании.
           </p>
-          <label class="flex items-start gap-2 cursor-pointer select-none pt-1 border-t border-amber-500/20">
+          <label class="flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 hover:bg-amber-500/20 transition-colors cursor-pointer select-none">
             <input
               type="checkbox"
               v-model="alphaAccepted"
-              class="w-4 h-4 mt-0.5 rounded-md accent-primary cursor-pointer shrink-0"
+              class="w-4 h-4 rounded accent-primary cursor-pointer shrink-0"
             />
-            <span class="text-[11px] font-medium leading-tight text-surface-on">
+            <span class="text-xs font-semibold leading-normal text-surface-on">
               Я подтверждаю участие в альфа-тестировании
             </span>
           </label>

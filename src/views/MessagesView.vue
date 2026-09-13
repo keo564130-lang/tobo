@@ -45,7 +45,7 @@
           <M3Button
             variant="filled"
             size="sm"
-            @click="showCreateMenu = !showCreateMenu"
+            @click="handleCreateMenuClick"
           >
             <span class="material-symbols-rounded text-lg">add</span>
           </M3Button>
@@ -113,6 +113,31 @@
 
     <!-- Список диалогов -->
     <div class="flex flex-col gap-2">
+      <!-- M3 Карточка гостевого режима -->
+      <div
+        v-if="!authStore.isAuthenticated"
+        class="p-4 sm:p-5 rounded-3xl bg-primary-container/30 border border-primary/20 backdrop-blur-sm shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-2"
+      >
+        <div class="flex items-start sm:items-center gap-3.5">
+          <div class="w-10 h-10 rounded-2xl bg-primary-container text-primary-onContainer flex items-center justify-center shrink-0 shadow-xs">
+            <span class="material-symbols-rounded text-2xl">account_circle</span>
+          </div>
+          <div class="flex flex-col">
+            <h4 class="text-sm font-bold text-surface-on">Гостевой режим</h4>
+            <p class="text-xs text-surface-onVariant/90 leading-relaxed mt-0.5 max-w-md">
+              Вы просматриваете tobo в гостевом режиме. Чтобы общаться, создавать диалоги и сохранять историю сообщений, войдите или создайте аккаунт
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="px-4 py-2 rounded-full bg-primary text-primary-on text-xs font-bold hover:opacity-90 active:scale-95 transition-all shrink-0 m3-press-effect cursor-pointer shadow-xs whitespace-nowrap"
+          @click="authStore.openAuthModal('signin')"
+        >
+          Войти / Регистрация
+        </button>
+      </div>
+
       <!-- Чистое пустое состояние при отсутствии диалогов -->
       <div
         v-if="filteredChats.length === 0"
@@ -172,8 +197,8 @@
         <!-- Аватар чата -->
         <div class="relative">
           <M3Avatar
-            :src="chat.avatar_url"
-            :name="chat.title"
+            :src="getChatDisplayInfo(chat).avatar_url"
+            :name="getChatDisplayInfo(chat).title"
             size="lg"
             :is-online="chat.type === 'direct'"
             :show-online="chat.type === 'direct'"
@@ -188,7 +213,7 @@
               <span v-else-if="chat.type === 'group'" class="material-symbols-rounded text-secondary text-sm shrink-0" title="Группа">group</span>
               <span v-else-if="chat.type === 'saved'" class="material-symbols-rounded text-secondary text-sm shrink-0" title="Избранное">bookmark</span>
               <span class="font-bold text-surface-on text-sm truncate">
-                {{ chat.title }}
+                {{ getChatDisplayInfo(chat).title }}
               </span>
               <!-- Метка официального канала -->
               <span
@@ -252,7 +277,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import type { ChatType } from '@/types/database';
+import type { Chat, ChatType } from '@/types/database';
 import FloatingTopBar from '@/components/ui/FloatingTopBar.vue';
 import FloatingBottomNav from '@/components/ui/FloatingBottomNav.vue';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
@@ -260,8 +285,11 @@ import M3Button from '@/components/ui/M3Button.vue';
 import ChatRoom from '@/components/messages/ChatRoom.vue';
 import CreateChatModal from '@/components/messages/CreateChatModal.vue';
 import { useChatStore } from '@/stores/chat';
+import { useAuthStore } from '@/stores/auth';
+import { localStore } from '@/lib/supabase';
 
 const chatStore = useChatStore();
+const authStore = useAuthStore();
 
 onMounted(async () => {
   await chatStore.refreshChats();
@@ -282,6 +310,32 @@ const filterOptions = [
   { key: 'channel' as const, label: 'Каналы' }
 ];
 
+function getChatDisplayInfo(chat: Chat): { title: string; avatar_url?: string } {
+  if (chat.type !== 'direct') {
+    return { title: chat.title, avatar_url: chat.avatar_url };
+  }
+  const currentUserId = authStore.user?.id;
+  // 1. Ищем участника, чей ID не равен текущему пользователю
+  const otherMember = chat.members?.find(m => m.user_id && m.user_id !== currentUserId);
+  if (otherMember?.user_id) {
+    const profile = localStore.getProfile(otherMember.user_id);
+    if (profile) {
+      const name = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username;
+      if (name) return { title: name, avatar_url: profile.avatar_url || chat.avatar_url };
+    }
+  }
+  // 2. Если chat.title совпадает с именем текущего пользователя, а создатель чата другой человек — берем профиль создателя
+  const currentFullName = `${authStore.user?.first_name || ''} ${authStore.user?.last_name || ''}`.trim();
+  if (currentFullName && chat.title === currentFullName && chat.created_by && chat.created_by !== currentUserId) {
+    const creatorProfile = localStore.getProfile(chat.created_by);
+    if (creatorProfile) {
+      const name = `${creatorProfile.first_name || ''} ${creatorProfile.last_name || ''}`.trim() || creatorProfile.username;
+      if (name) return { title: name, avatar_url: creatorProfile.avatar_url };
+    }
+  }
+  return { title: chat.title || 'Собеседник', avatar_url: chat.avatar_url };
+}
+
 const filteredChats = computed(() => {
   return chatStore.chats.filter(chat => {
     // Фильтр по категории
@@ -294,7 +348,8 @@ const filteredChats = computed(() => {
     // Фильтр по поисковой строке
     if (searchQuery.value.trim()) {
       const q = searchQuery.value.toLowerCase();
-      const matchTitle = chat.title.toLowerCase().includes(q);
+      const displayTitle = getChatDisplayInfo(chat).title.toLowerCase();
+      const matchTitle = displayTitle.includes(q) || chat.title.toLowerCase().includes(q);
       const matchLastMsg = chat.last_message?.content?.toLowerCase().includes(q);
       return matchTitle || matchLastMsg;
     }
@@ -312,7 +367,19 @@ function openChat(chatId: string) {
   chatStore.selectChat(chatId);
 }
 
+function handleCreateMenuClick() {
+  if (!authStore.isAuthenticated) {
+    authStore.openAuthModal('signup');
+    return;
+  }
+  showCreateMenu.value = !showCreateMenu.value;
+}
+
 function openCreate(type: ChatType) {
+  if (!authStore.isAuthenticated) {
+    authStore.openAuthModal('signup');
+    return;
+  }
   createChatType.value = type;
   showCreateMenu.value = false;
   showCreateModal.value = true;

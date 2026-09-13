@@ -9,17 +9,28 @@ import type { Chat, Message, ChatType, BlockedUser, Post, Profile, MessageCommen
 import { localStore, supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuthStore } from './auth';
 
+export function isMockChatId(id: string): boolean {
+  if (!id) return false;
+  return (
+    id.startsWith('chat-direct-misha') ||
+    id.startsWith('chat-group-design') ||
+    id.startsWith('chat-group-flood')
+  );
+}
+
 function loadCachedChats(): Chat[] {
   try {
     const raw = localStorage.getItem('tobo_chats_cache');
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.filter((c: Chat) => !isMockChatId(c.id));
+      }
     }
   } catch (e) {
     console.warn('Failed to load tobo_chats_cache:', e);
   }
-  return localStore.getChats();
+  return localStore.getChats().filter(c => !isMockChatId(c.id));
 }
 
 export function canAccessChat(chat: Chat, currentUserId?: string, isDeveloper?: boolean): boolean {
@@ -87,6 +98,9 @@ export const useChatStore = defineStore('chat', () => {
                   if (!lastMsgMap.has(m.chat_id)) {
                     lastMsgMap.set(m.chat_id, m);
                   }
+                  if (m.sender) {
+                    localStore.saveProfile(m.sender);
+                  }
                 }
               }
             } catch (mErr) {
@@ -108,19 +122,47 @@ export const useChatStore = defineStore('chat', () => {
             members: c.chat_members,
             last_message: lastMsgMap.get(c.id) || undefined,
             unread_count: 0
-          })).filter(checkChatAccess);
+          })).filter(checkChatAccess).filter((c: Chat) => !isMockChatId(c.id));
+
+          // Предзагружаем профили участников для корректного отображения имен собеседников
+          const userIdsToFetch = new Set<string>();
+          for (const c of data) {
+            if (c.chat_members) {
+              for (const m of c.chat_members) {
+                if (m.user_id && m.user_id !== authStore.user?.id && !localStore.getProfile(m.user_id)) {
+                  userIdsToFetch.add(m.user_id);
+                }
+              }
+            }
+            if (c.created_by && c.created_by !== authStore.user?.id && !localStore.getProfile(c.created_by)) {
+              userIdsToFetch.add(c.created_by);
+            }
+          }
+          if (userIdsToFetch.size > 0) {
+            try {
+              const { data: profs } = await supabase
+                .from('profiles')
+                .select('*')
+                .in('id', Array.from(userIdsToFetch));
+              if (profs) {
+                profs.forEach((p: Profile) => localStore.saveProfile(p));
+              }
+            } catch (pErr) {
+              console.warn('Supabase prefetch profiles failed:', pErr);
+            }
+          }
 
           const remoteIds = new Set(remoteChats.map(c => c.id));
           // Сохраняем все локальные/кэшированные чаты, которых пока нет в удаленной выборке
-          const localOnly = chats.value.filter(c => !remoteIds.has(c.id));
-          const localStoreChats = localStore.getChats().filter(checkChatAccess);
+          const localOnly = chats.value.filter(c => !remoteIds.has(c.id) && !isMockChatId(c.id));
+          const localStoreChats = localStore.getChats().filter(checkChatAccess).filter(c => !isMockChatId(c.id));
           for (const lc of localStoreChats) {
             if (!remoteIds.has(lc.id) && !localOnly.some(c => c.id === lc.id)) {
               localOnly.push(lc);
             }
           }
 
-          chats.value = [...remoteChats, ...localOnly];
+          chats.value = [...remoteChats, ...localOnly].filter(c => !isMockChatId(c.id));
 
           try {
             localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
@@ -129,7 +171,7 @@ export const useChatStore = defineStore('chat', () => {
         } else {
           // Если чатов нет и кэш пустой — проверяем локальное хранилище
           if (!chats.value.length) {
-            chats.value = localStore.getChats().filter(checkChatAccess);
+            chats.value = localStore.getChats().filter(checkChatAccess).filter(c => !isMockChatId(c.id));
           }
           return;
         }
@@ -140,7 +182,7 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     if (!isSupabaseConfigured()) {
-      chats.value = localStore.getChats().filter(checkChatAccess);
+      chats.value = localStore.getChats().filter(checkChatAccess).filter(c => !isMockChatId(c.id));
       try {
         localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
       } catch {}
@@ -251,6 +293,11 @@ export const useChatStore = defineStore('chat', () => {
   }) {
     const targetChatId = params.chat_id || activeChatId.value;
     if (!targetChatId) return;
+
+    if (!authStore.isAuthenticated) {
+      authStore.openAuthModal('signin');
+      return;
+    }
 
     // Supabase режим
     if (isSupabaseConfigured() && supabase) {

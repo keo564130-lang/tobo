@@ -332,9 +332,34 @@
         </button>
       </div>
 
+      <!-- Баннер для неавторизованных пользователей (Гостевой режим) -->
+      <div
+        v-if="!authStore.isAuthenticated"
+        class="pointer-events-auto rounded-3xl bg-surface-lowest/95 backdrop-blur-xl shadow-floating-bar border border-primary/20 p-3.5 flex items-center justify-between gap-3"
+      >
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <span class="material-symbols-rounded text-xl">lock</span>
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="text-xs font-bold text-surface-on leading-tight">Вход в аккаунт</span>
+            <span class="text-[11px] text-surface-onVariant/80 truncate leading-tight">
+              Чтобы писать сообщения и отправлять медиа, войдите или зарегистрируйтесь
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="px-4 py-2 rounded-full bg-primary text-primary-on text-xs font-bold hover:opacity-90 active:scale-95 transition-all shrink-0 m3-press-effect cursor-pointer shadow-xs whitespace-nowrap"
+          @click="authStore.openAuthModal('signin')"
+        >
+          Войти
+        </button>
+      </div>
+
       <!-- Плашка "Канал только для чтения" для тех, у кого нет прав на публикацию -->
       <div
-        v-if="!canPostInChannel"
+        v-else-if="!canPostInChannel"
         class="pointer-events-auto rounded-3xl bg-surface-lowest/95 backdrop-blur-xl shadow-floating-bar border border-surface-high/50 px-4 py-3 flex items-center justify-between"
       >
         <div class="flex items-center gap-2">
@@ -546,7 +571,6 @@ import { useAuthStore } from '@/stores/auth';
 import { useChatStore } from '@/stores/chat';
 import { useToastStore } from '@/stores/toast';
 import { localStore } from '@/lib/supabase';
-import { mishaProfileMock, annaProfileMock, currentUserMock } from '@/lib/mockData';
 import type { VoiceRecordingResult } from '@/lib/audioRecorder';
 
 const props = defineProps<{
@@ -753,35 +777,34 @@ const canPostInChannel = computed(() => {
 
 // Динамическое определение собеседника для любого диалога
 const peerProfile = computed<Profile>(() => {
-  if (chat.value?.id === 'chat-direct-misha-003') {
-    // Если мы переключились на Мишу, собеседник — Алексей!
-    if (authStore.user.id === mishaProfileMock.id) {
-      return currentUserMock;
-    }
-    return mishaProfileMock;
-  }
+  const currentUserId = authStore.user?.id;
+  const currentFullName = `${authStore.user?.first_name || ''} ${authStore.user?.last_name || ''}`.trim();
 
-  // Поиск другого участника по chat.members
-  const otherMember = chat.value?.members?.find(m => m.user_id && m.user_id !== authStore.user?.id);
-  if (otherMember) {
+  // 1. Поиск другого участника по chat.members
+  const otherMember = chat.value?.members?.find(m => m.user_id && m.user_id !== currentUserId);
+  if (otherMember?.user_id) {
     const memberProfile = localStore.getProfile(otherMember.user_id);
     if (memberProfile) return memberProfile;
   }
   
-  // Поиск в хранилище профилей
-  if (chat.value?.created_by && chat.value.created_by !== authStore.user?.id) {
+  // 2. Поиск профиля создателя, если создатель другой пользователь
+  if (chat.value?.created_by && chat.value.created_by !== currentUserId) {
     const customProfile = localStore.getProfile(chat.value.created_by);
     if (customProfile) {
       return customProfile;
     }
   }
 
-  // Динамический профиль по заголовку чата
+  // Динамический профиль по заголовку чата (если он не совпадает с текущим пользователем)
+  const fallbackTitle = (chat.value?.title && chat.value.title !== currentFullName)
+    ? chat.value.title
+    : 'Собеседник';
+
   return {
     id: `peer-${chat.value?.id || 'default'}`,
-    username: (chat.value?.title || 'contact').toLowerCase().replace(/\s+/g, '_'),
-    first_name: chat.value?.title || 'Собеседник',
-    avatar_url: chat.value?.avatar_url || mishaProfileMock.avatar_url,
+    username: fallbackTitle.toLowerCase().replace(/\s+/g, '_'),
+    first_name: fallbackTitle,
+    avatar_url: chat.value?.avatar_url,
     bio: 'Пользователь социальной сети tobo',
     is_online: true,
     created_at: new Date().toISOString()
@@ -851,6 +874,10 @@ function clearChat() {
 }
 
 function sendTextMessage() {
+  if (!authStore.isAuthenticated) {
+    authStore.openAuthModal('signin');
+    return;
+  }
   if (!inputText.value.trim() || !hasChannelAccess.value) return;
   const safeContent = inputText.value.trim().slice(0, 4000);
   chatStore.sendMessage({
@@ -868,6 +895,10 @@ function sendTextMessage() {
 
 function handleVoiceSend(res: VoiceRecordingResult) {
   isRecordingVoice.value = false;
+  if (!authStore.isAuthenticated) {
+    authStore.openAuthModal('signin');
+    return;
+  }
   chatStore.sendMessage({
     voice_url: res.audioUrl,
     voice_duration: res.duration,
@@ -884,6 +915,10 @@ function handleVoiceSend(res: VoiceRecordingResult) {
 }
 
 function handleAttach(e: Event) {
+  if (!authStore.isAuthenticated) {
+    authStore.openAuthModal('signin');
+    return;
+  }
   const target = e.target as HTMLInputElement;
   if (target.files && target.files.length > 0) {
     chatStore.sendMessage({

@@ -21,9 +21,7 @@ import {
   mishaProfileMock, 
   annaProfileMock, 
   toboOfficialProfileMock, 
-  initialPostsMock, 
-  initialChatsMock, 
-  initialMessagesMock
+  initialPostsMock
 } from './mockData';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -82,8 +80,16 @@ class LocalDataStore {
       localStorage.removeItem(STORAGE_KEYS.POSTS);
     }
     const chatCache = localStorage.getItem(STORAGE_KEYS.CHATS);
-    if (chatCache && chatCache.includes('unsplash.com')) {
+    if (chatCache && (chatCache.includes('unsplash.com') || chatCache.includes('chat-direct-misha') || chatCache.includes('chat-group-design') || chatCache.includes('chat-group-flood'))) {
       localStorage.removeItem(STORAGE_KEYS.CHATS);
+    }
+    const generalChatCache = localStorage.getItem('tobo_chats_cache');
+    if (generalChatCache && (generalChatCache.includes('chat-direct-misha') || generalChatCache.includes('chat-group-design') || generalChatCache.includes('chat-group-flood'))) {
+      localStorage.removeItem('tobo_chats_cache');
+    }
+    const msgCache = localStorage.getItem(STORAGE_KEYS.MESSAGES);
+    if (msgCache && (msgCache.includes('chat-direct-misha') || msgCache.includes('chat-group-design') || msgCache.includes('chat-group-flood'))) {
+      localStorage.removeItem(STORAGE_KEYS.MESSAGES);
     }
     const commentCache = localStorage.getItem(STORAGE_KEYS.COMMENTS);
     if (commentCache && commentCache.includes('unsplash.com')) {
@@ -123,21 +129,32 @@ class LocalDataStore {
     const savedPosts = localStorage.getItem(STORAGE_KEYS.POSTS);
     this.posts = savedPosts ? JSON.parse(savedPosts) : [...initialPostsMock];
 
-    // 4. Инициализация чатов
+    // 4. Инициализация чатов (только реальные чаты, никаких mock-заглушек!)
     const savedChats = localStorage.getItem(STORAGE_KEYS.CHATS);
-    this.chats = savedChats ? JSON.parse(savedChats) : [...initialChatsMock];
+    if (savedChats) {
+      try {
+        const parsed = JSON.parse(savedChats);
+        this.chats = Array.isArray(parsed)
+          ? parsed.filter((c: Chat) => !c.id.startsWith('chat-direct-misha') && !c.id.startsWith('chat-group-design') && !c.id.startsWith('chat-group-flood'))
+          : [];
+      } catch {
+        this.chats = [];
+      }
+    } else {
+      this.chats = [];
+    }
 
-    // 5. Инициализация сообщений
+    // 5. Инициализация сообщений (только реальные сообщения)
     const savedMessages = localStorage.getItem(STORAGE_KEYS.MESSAGES);
     if (savedMessages) {
-      const parsed = JSON.parse(savedMessages) as Record<string, Message[]>;
-      Object.entries(parsed).forEach(([chatId, msgs]) => {
-        this.messages.set(chatId, msgs);
-      });
-    } else {
-      Object.entries(initialMessagesMock).forEach(([chatId, msgs]) => {
-        this.messages.set(chatId, [...msgs]);
-      });
+      try {
+        const parsed = JSON.parse(savedMessages) as Record<string, Message[]>;
+        Object.entries(parsed).forEach(([chatId, msgs]) => {
+          if (!chatId.startsWith('chat-direct-misha') && !chatId.startsWith('chat-group-design') && !chatId.startsWith('chat-group-flood')) {
+            this.messages.set(chatId, msgs);
+          }
+        });
+      } catch {}
     }
 
     // 6. Инициализация сессий (без фейковых заглушек)
@@ -199,6 +216,12 @@ class LocalDataStore {
 
   getProfile(id: string): Profile | undefined {
     return this.profiles.get(id);
+  }
+
+  saveProfile(profile: Profile): void {
+    if (profile && profile.id) {
+      this.profiles.set(profile.id, { ...profile });
+    }
   }
 
   getProfiles(): Profile[] {
