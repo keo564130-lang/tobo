@@ -4,6 +4,7 @@
   Production URL: https://tobo-me.vercel.app
   GitHub Repository: https://github.com/keo564130-lang/tobo.git
   Supabase Project: https://ftqmksipbkbcnivhxgzu.supabase.co
+  Официальная почта поддержки и модерации: tobo.messenger@yandex.ru
 ================================================================================
 
 1. О ПРОЕКТЕ

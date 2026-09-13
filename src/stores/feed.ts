@@ -10,6 +10,8 @@ import { localStore, supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuthStore } from './auth';
 import { useChatStore } from './chat';
 
+export const MODERATOR_EMAIL = 'tobo.messenger@yandex.ru';
+
 function loadIdSetFromStorage(key: string): Set<string> {
   try {
     const raw = localStorage.getItem(key);
@@ -794,7 +796,7 @@ export const useFeedStore = defineStore('feed', () => {
 
     // Подготовка структуры данных для последующей отправки на email модераторам
     const emailDispatchData = {
-      to: 'moderation@tobo.me',
+      to: MODERATOR_EMAIL,
       subject: `[Tobo Moderation] Жалоба на публикацию #${postId} (${safeReason})`,
       report: reportPayload,
       submitted_at: new Date().toISOString()
