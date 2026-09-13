@@ -498,8 +498,9 @@ function handleAvatarUpload(e: Event) {
   }
 }
 
-function handleCropComplete(croppedBase64: string) {
-  avatarUrl.value = croppedBase64;
+function handleCropComplete(result: string | { base64: string; blob?: Blob }) {
+  const base64 = typeof result === 'string' ? result : result.base64;
+  avatarUrl.value = base64;
   toastStore.show('Миниатюра аватарки успешно кадрирована', 'success');
 }
 

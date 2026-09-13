@@ -45,6 +45,7 @@ export const currentUserMock: Profile = {
   cover_url: alexCoverSvg,
   bio: 'Дизайнер интерфейсов & энтузиаст Material 3 Expressive. Строю будущее в tobo 🚀',
   is_online: true,
+  is_developer: true,
   created_at: new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString()
 };
 
@@ -57,6 +58,7 @@ export const mishaProfileMock: Profile = {
   cover_url: mishaCoverSvg,
   bio: 'Frontend & System Engineer. Люблю минимализм, чистый код и пастельные тона ☕',
   is_online: true,
+  is_developer: true,
   last_seen: new Date().toISOString(),
   created_at: new Date(Date.now() - 120 * 24 * 3600 * 1000).toISOString()
 };
@@ -70,6 +72,7 @@ export const annaProfileMock: Profile = {
   cover_url: annaCoverSvg,
   bio: 'UX Исследователь и фотограф. Изучаю психологию восприятия цвета.',
   is_online: false,
+  is_developer: false,
   last_seen: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
   created_at: new Date(Date.now() - 60 * 24 * 3600 * 1000).toISOString()
 };
@@ -82,6 +85,7 @@ export const toboOfficialProfileMock: Profile = {
   avatar_url: toboOfficialAvatarSvg,
   bio: 'Официальный аккаунт разработчиков социальной сети tobo',
   is_online: true,
+  is_developer: true,
   created_at: '2026-01-01T00:00:00.000Z'
 };
 

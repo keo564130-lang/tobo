@@ -185,10 +185,13 @@
     <footer class="fixed bottom-3 left-0 right-0 z-40 px-4 max-w-2xl mx-auto pointer-events-none">
       <!-- Плашка "Канал только для чтения" для обычных подписчиков -->
       <div
-        v-if="chat?.type === 'channel' && chat?.created_by !== authStore.user.id"
+        v-if="chat?.type === 'channel' && chat?.created_by !== authStore.user.id && !authStore.isDeveloper"
         class="pointer-events-auto rounded-3xl bg-surface-lowest/95 backdrop-blur-xl shadow-floating-bar border border-surface-high/50 px-4 py-3 flex items-center justify-between"
       >
-        <span class="text-xs text-surface-onVariant font-medium">Канал только для чтения</span>
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-rounded text-base text-surface-onVariant">campaign</span>
+          <span class="text-xs text-surface-onVariant font-medium">Канал только для чтения</span>
+        </div>
         <button
           class="text-xs font-bold text-primary flex items-center gap-1.5 cursor-pointer hover:opacity-85 transition-opacity"
           @click="toggleMute"

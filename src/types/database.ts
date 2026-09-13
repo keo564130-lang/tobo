@@ -19,9 +19,14 @@ export interface Profile {
   cover_url?: string;
   bio?: string;
   is_online: boolean;
+  is_developer?: boolean;
   last_seen?: string;
   created_at: string;
   updated_at?: string;
+}
+
+export interface RankedPostAuthor extends Profile {
+  is_developer: boolean;
 }
 
 export interface Post {

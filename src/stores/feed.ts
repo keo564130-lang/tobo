@@ -32,6 +32,7 @@ export const useFeedStore = defineStore('feed', () => {
               first_name: row.author_first_name,
               last_name: row.author_last_name,
               avatar_url: row.author_avatar_url,
+              is_developer: Boolean(row.author_is_developer),
               is_online: false,
               created_at: row.created_at
             },

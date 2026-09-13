@@ -18,11 +18,16 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     avatar_url TEXT,
     cover_url TEXT,
     bio TEXT,
+    is_developer BOOLEAN DEFAULT false NOT NULL,
     is_online BOOLEAN DEFAULT false,
     last_seen TIMESTAMPTZ DEFAULT now(),
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_profiles_is_developer 
+ON public.profiles(is_developer) 
+WHERE is_developer = true;
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
@@ -387,7 +392,8 @@ RETURNS TABLE (
     author_username TEXT,
     author_first_name TEXT,
     author_last_name TEXT,
-    author_avatar_url TEXT
+    author_avatar_url TEXT,
+    author_is_developer BOOLEAN
 ) 
 LANGUAGE sql STABLE AS $$
     SELECT 
@@ -410,7 +416,8 @@ LANGUAGE sql STABLE AS $$
         prof.username AS author_username,
         prof.first_name AS author_first_name,
         prof.last_name AS author_last_name,
-        prof.avatar_url AS author_avatar_url
+        prof.avatar_url AS author_avatar_url,
+        prof.is_developer AS author_is_developer
     FROM public.posts p
     JOIN public.profiles prof ON prof.id = p.author_id
     ORDER BY rank_score DESC, p.created_at DESC

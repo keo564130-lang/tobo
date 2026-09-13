@@ -106,6 +106,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch } from 'vue';
+import { processCanvasCrop, type CropResult } from '@/lib/cropperEngine';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -114,7 +115,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void;
-  (e: 'crop-complete', croppedBase64: string): void;
+  (e: 'crop-complete', result: CropResult): void;
 }>();
 
 const cropContainer = ref<HTMLDivElement | null>(null);
@@ -182,42 +183,22 @@ function onWheel(e: WheelEvent) {
   zoom.value = Math.min(Math.max(1, +(zoom.value + delta).toFixed(2)), 3);
 }
 
-function cropAndSave() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 400;
-  canvas.height = 400;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
+async function cropAndSave() {
+  if (!cropContainer.value || !imgElement.value) return;
+  const containerRect = cropContainer.value.getBoundingClientRect();
+  const imgRect = imgElement.value.getBoundingClientRect();
 
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.onload = () => {
-    const containerRect = cropContainer.value?.getBoundingClientRect();
-    const imgRect = imgElement.value?.getBoundingClientRect();
-
-    if (containerRect && imgRect) {
-      // Видоискатель центрирован в квадрате 288x288, диаметр 260px (отступ 14px с каждой стороны)
-      const cropScreenLeft = containerRect.left + 14 * (containerRect.width / 288);
-      const cropScreenTop = containerRect.top + 14 * (containerRect.height / 288);
-      const cropScreenSize = 260 * (containerRect.width / 288);
-      const ratio = 400 / cropScreenSize;
-
-      const drawX = (imgRect.left - cropScreenLeft) * ratio;
-      const drawY = (imgRect.top - cropScreenTop) * ratio;
-      const drawW = imgRect.width * ratio;
-      const drawH = imgRect.height * ratio;
-
-      ctx.fillStyle = '#1E2025';
-      ctx.fillRect(0, 0, 400, 400);
-      ctx.drawImage(img, drawX, drawY, drawW, drawH);
-    } else {
-      ctx.drawImage(img, 0, 0, 400, 400);
-    }
-
-    const base64 = canvas.toDataURL('image/jpeg', 0.9);
-    emit('crop-complete', base64);
+  try {
+    const result = await processCanvasCrop(
+      props.imageSrc,
+      { offsetX: position.x, offsetY: position.y, zoom: zoom.value },
+      containerRect,
+      imgRect
+    );
+    emit('crop-complete', result);
     emit('update:modelValue', false);
-  };
-  img.src = props.imageSrc;
+  } catch (err) {
+    console.error('cropAndSave error:', err);
+  }
 }
 </script>

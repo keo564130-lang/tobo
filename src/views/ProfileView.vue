@@ -22,14 +22,14 @@
           <span class="text-primary font-sans font-semibold text-xs truncate">{{ authStore.user.first_name }}</span>
         </button>
 
-        <!-- Кнопка быстрой регистрации и онбординга -->
+        <!-- Кнопка авторизации (Вход / Регистрация) -->
         <button
           type="button"
           class="w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect shrink-0 cursor-pointer"
-          title="Быстрая регистрация и онбординг"
-          @click="authStore.openOnboarding('register')"
+          title="Вход / Регистрация"
+          @click="authStore.openAuthModal('signin')"
         >
-          <span class="material-symbols-rounded text-2xl">person_add</span>
+          <span class="material-symbols-rounded text-2xl">account_circle</span>
         </button>
 
         <!-- Кнопка перехода в Настройки -->
@@ -68,7 +68,17 @@
           </div>
 
           <!-- Кнопки управления профилем -->
-          <div class="flex items-center gap-1.5">
+          <div class="flex items-center gap-1.5 flex-wrap justify-end">
+            <M3Button
+              variant="tonal"
+              size="sm"
+              title="Вход / Регистрация"
+              @click="authStore.openAuthModal('signin')"
+            >
+              <span class="material-symbols-rounded text-base">login</span>
+              <span class="hidden sm:inline">Вход</span>
+            </M3Button>
+
             <M3Button
               variant="text"
               size="sm"
@@ -92,9 +102,19 @@
 
         <!-- Имя, юзернейм и био -->
         <div class="flex flex-col">
-          <h2 class="text-xl font-bold text-surface-on leading-tight">
-            {{ authStore.user.first_name }} {{ authStore.user.last_name || '' }}
-          </h2>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h2 class="text-xl font-bold text-surface-on leading-tight">
+              {{ authStore.user.first_name }} {{ authStore.user.last_name || '' }}
+            </h2>
+            <!-- Бейдж «Разработчик tobo» -->
+            <div
+              v-if="authStore.isDeveloper"
+              class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-primary-container to-secondary-container text-primary-onContainer font-bold text-[10px] tracking-wide shadow-xs select-none"
+            >
+              <span class="material-symbols-rounded text-xs text-primary">verified</span>
+              <span>Разработчик tobo</span>
+            </div>
+          </div>
           <span class="text-xs text-primary font-mono mt-0.5">
             @{{ authStore.user.username }}
           </span>

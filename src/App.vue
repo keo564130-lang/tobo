@@ -14,6 +14,12 @@
       v-model="authStore.showOnboarding"
       :initial-step="authStore.onboardingStep"
     />
+
+    <!-- Модальное окно входа и регистрации -->
+    <AuthModal
+      v-model="authStore.showAuthModal"
+      :initial-mode="authStore.authModalMode"
+    />
   </div>
 </template>
 
@@ -21,6 +27,7 @@
 import { onMounted } from 'vue';
 import ToastContainer from '@/components/ui/ToastContainer.vue';
 import OnboardingModal from '@/components/auth/OnboardingModal.vue';
+import AuthModal from '@/components/auth/AuthModal.vue';
 import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
 
