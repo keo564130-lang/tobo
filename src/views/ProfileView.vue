@@ -95,14 +95,14 @@
         <!-- Имя, юзернейм и био -->
         <div class="flex flex-col">
           <template v-if="authStore.isAuthenticated">
-            <div class="flex items-center gap-2 flex-wrap">
-              <h2 class="text-xl font-bold text-surface-on leading-tight">
+            <div class="flex items-center gap-2 flex-nowrap min-w-0">
+              <h2 class="text-xl font-bold text-surface-on leading-tight truncate">
                 {{ authStore.user.first_name }} {{ authStore.user.last_name || '' }}
               </h2>
               <!-- Бейдж «Разработчик tobo» -->
               <div
                 v-if="authStore.isDeveloper"
-                class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:bg-emerald-950/80 dark:border-emerald-500/40 dark:text-emerald-300 font-bold text-[11px] tracking-wide shadow-xs select-none transition-colors"
+                class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:bg-emerald-950/80 dark:border-emerald-500/40 dark:text-emerald-300 font-bold text-[11px] tracking-wide shadow-xs shrink-0 select-none"
               >
                 <span class="material-symbols-rounded text-xs text-emerald-600 dark:text-emerald-400">verified</span>
                 <span>Разработчик tobo</span>

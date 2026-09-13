@@ -1,10 +1,13 @@
 <template>
   <Teleport to="body">
     <div v-if="modelValue" class="fixed inset-0 z-70 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div class="w-full max-w-md rounded-4xl bg-surface-lowest border border-surface-high/60 p-6 shadow-elevation-4 flex flex-col items-center">
-        <!-- Шапка -->
+      <div class="w-full max-w-lg rounded-4xl bg-surface-lowest border border-surface-high/60 p-6 shadow-elevation-4 flex flex-col items-center">
+        <!-- Шапка модалки -->
         <div class="w-full flex items-center justify-between mb-4">
-          <h3 class="text-base font-bold text-surface-on">Выбор миниатюры</h3>
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-rounded text-primary text-xl">crop_landscape</span>
+            <h3 class="text-base font-bold text-surface-on">Кадрирование обложки</h3>
+          </div>
           <button
             type="button"
             aria-label="Закрыть"
@@ -15,19 +18,19 @@
           </button>
         </div>
 
-        <!-- Область кадрирования с круглой маской -->
+        <!-- Область кадрирования с прямоугольным видоискателем (8:3) -->
         <div
           ref="cropContainer"
-          class="relative w-72 h-72 rounded-3xl overflow-hidden bg-black select-none cursor-grab active:cursor-grabbing touch-none flex items-center justify-center shadow-inner"
+          class="relative w-full max-w-[392px] h-[167px] rounded-3xl overflow-hidden bg-black select-none cursor-grab active:cursor-grabbing touch-none flex items-center justify-center shadow-inner"
           @mousedown="startDrag"
           @touchstart="startDragTouch"
           @wheel.prevent="onWheel"
         >
-          <!-- Само фото с вычисленными размерами coverScale и свободным зумом -->
+          <!-- Картинка обложки -->
           <img
             ref="imgElement"
             :src="imageSrc"
-            alt="Кроп"
+            alt="Кадрируемая обложка"
             class="absolute max-w-none pointer-events-none select-none"
             :class="{ 'transition-transform duration-75': !isDragging }"
             :style="{
@@ -40,58 +43,58 @@
             @load="onImageLoad"
           />
 
-          <!-- Круглая маска видоискателя как в ВК / Telegram (SVG с вырезанным кругом) -->
-          <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 288 288">
+          <!-- Прямоугольная SVG маска видоискателя (360x135, rx=16) -->
+          <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 392 167">
             <defs>
-              <mask id="avatar-circle-mask">
-                <rect width="288" height="288" fill="white" />
-                <circle cx="144" cy="144" r="130" fill="black" />
+              <mask id="cover-viewfinder-mask">
+                <rect width="392" height="167" fill="white" />
+                <rect x="16" y="16" width="360" height="135" rx="16" ry="16" fill="black" />
               </mask>
             </defs>
-            <!-- Внешнее затемнение 65% -->
-            <rect width="288" height="288" fill="rgba(0, 0, 0, 0.65)" mask="url(#avatar-circle-mask)" />
-            <!-- Ультратонкий направляющий пунктир квадрата видоискателя 260x260 -->
-            <rect x="14" y="14" width="260" height="260" fill="none" stroke="rgba(255, 255, 255, 0.3)" stroke-width="1" stroke-dasharray="4 4" />
-            <!-- Ровная белая окантовка круга 260px -->
-            <circle cx="144" cy="144" r="130" fill="none" stroke="rgba(255, 255, 255, 0.9)" stroke-width="2" />
-            <!-- Симметричные аккуратные угловые скобки (L-markers) по углам видоискателя -->
-            <path d="M 14 34 L 14 14 L 34 14" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M 254 14 L 274 14 L 274 34" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M 14 254 L 14 274 L 34 274" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M 254 274 L 274 274 L 274 254" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            <!-- Затемнение 65% снаружи рамки -->
+            <rect width="392" height="167" fill="rgba(0, 0, 0, 0.65)" mask="url(#cover-viewfinder-mask)" />
+            <!-- Ультратонкий направляющий пунктир -->
+            <rect x="16" y="16" width="360" height="135" rx="16" ry="16" fill="none" stroke="rgba(255, 255, 255, 0.3)" stroke-width="1" stroke-dasharray="4 4" />
+            <!-- Белая окантовка видоискателя 2px -->
+            <rect x="16" y="16" width="360" height="135" rx="16" ry="16" fill="none" stroke="rgba(255, 255, 255, 0.9)" stroke-width="2" />
+            <!-- Аккуратные угловые L-маркеры -->
+            <path d="M 16 36 L 16 16 L 36 16" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M 356 16 L 376 16 L 376 36" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M 16 131 L 16 151 L 36 151" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M 356 151 L 376 151 L 376 131" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
 
-        <!-- Ползунок приближения (Zoom Slider) -->
-        <div class="w-72 flex items-center gap-3 mt-4 text-surface-onVariant">
+        <!-- Ползунок масштабирования зума от 0.2x до 4.0x -->
+        <div class="w-full max-w-[392px] flex items-center gap-3 mt-4 text-surface-onVariant">
           <button
             type="button"
             class="w-6 h-6 flex items-center justify-center hover:text-surface-on cursor-pointer"
             title="Отдалить"
-            @click="zoom = Math.max(0.1, +(zoom - 0.1).toFixed(2))"
+            @click="zoom = Math.max(0.2, +(zoom - 0.1).toFixed(2))"
           >
             <span class="material-symbols-rounded text-lg">zoom_out</span>
           </button>
           <input
             v-model.number="zoom"
             type="range"
-            min="0.1"
-            max="3"
-            step="0.02"
-            aria-label="Масштаб миниатюры"
+            min="0.2"
+            max="4.0"
+            step="0.05"
+            aria-label="Масштаб обложки"
             class="flex-1 accent-primary h-1.5 bg-surface-high rounded-lg cursor-pointer"
           />
           <button
             type="button"
             class="w-6 h-6 flex items-center justify-center hover:text-surface-on cursor-pointer"
             title="Приблизить"
-            @click="zoom = Math.min(3, +(zoom + 0.1).toFixed(2))"
+            @click="zoom = Math.min(4.0, +(zoom + 0.1).toFixed(2))"
           >
             <span class="material-symbols-rounded text-lg">zoom_in</span>
           </button>
         </div>
 
-        <!-- Кнопки управления внизу -->
+        <!-- Кнопки действий -->
         <div class="w-full flex items-center justify-end gap-2.5 mt-6 pt-3 border-t border-surface-high/40">
           <button
             type="button"
@@ -102,10 +105,11 @@
           </button>
           <button
             type="button"
-            class="px-6 py-2.5 rounded-full bg-primary text-primary-on font-bold text-xs shadow-sm hover:opacity-95 active:scale-95 transition-all cursor-pointer"
+            class="px-6 py-2.5 rounded-full bg-primary text-primary-on font-bold text-xs shadow-sm hover:opacity-95 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
             @click="cropAndSave"
           >
-            Сохранить
+            <span class="material-symbols-rounded text-base">check</span>
+            <span>Применить обложку</span>
           </button>
         </div>
       </div>
@@ -115,7 +119,11 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue';
-import { processCanvasCrop, type CropResult } from '@/lib/cropperEngine';
+
+export interface CoverCropResult {
+  base64: string;
+  blob: Blob;
+}
 
 const props = defineProps<{
   modelValue: boolean;
@@ -124,7 +132,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void;
-  (e: 'crop-complete', result: CropResult): void;
+  (e: 'crop-complete', result: CoverCropResult): void;
 }>();
 
 const cropContainer = ref<HTMLDivElement | null>(null);
@@ -138,25 +146,27 @@ const position = reactive({ x: 0, y: 0 });
 const isDragging = ref(false);
 const dragStart = reactive({ x: 0, y: 0 });
 
+const VIEWFINDER_WIDTH = 360;
+const VIEWFINDER_HEIGHT = 135;
+const TARGET_WIDTH = 1200;
+const TARGET_HEIGHT = 450;
+
 function updateImageDimensions(width: number, height: number) {
   if (!width || !height) return;
   naturalWidth.value = width;
   naturalHeight.value = height;
-  // Базовый масштаб: вписываем изображение в 260px (fitScale)
-  const fitScale = Math.min(260 / width, 260 / height);
-  baseScale.value = fitScale;
-  // При открытии устанавливаем zoom так, чтобы фото сразу покрывало видоискатель
-  const initialZoom = Math.max(1.0, Math.max(260 / width, 260 / height) / fitScale);
-  zoom.value = Number(initialZoom.toFixed(2));
+  // Покрываем видоискатель 360x135
+  const coverScale = Math.max(VIEWFINDER_WIDTH / width, VIEWFINDER_HEIGHT / height);
+  baseScale.value = coverScale;
 }
 
 const displayedWidth = computed(() => {
-  if (!naturalWidth.value) return 260 * zoom.value;
+  if (!naturalWidth.value) return VIEWFINDER_WIDTH * zoom.value;
   return Math.round(naturalWidth.value * baseScale.value * zoom.value);
 });
 
 const displayedHeight = computed(() => {
-  if (!naturalHeight.value) return 260 * zoom.value;
+  if (!naturalHeight.value) return VIEWFINDER_HEIGHT * zoom.value;
   return Math.round(naturalHeight.value * baseScale.value * zoom.value);
 });
 
@@ -170,6 +180,7 @@ watch(
   () => [props.modelValue, props.imageSrc],
   ([isOpen]) => {
     if (isOpen && props.imageSrc) {
+      zoom.value = 1.0;
       position.x = 0;
       position.y = 0;
 
@@ -226,25 +237,64 @@ function stopDragTouch() {
 
 function onWheel(e: WheelEvent) {
   const delta = e.deltaY > 0 ? -0.05 : 0.05;
-  zoom.value = Math.min(Math.max(0.1, +(zoom.value + delta).toFixed(2)), 3.0);
+  zoom.value = Math.min(Math.max(0.2, +(zoom.value + delta).toFixed(2)), 4.0);
 }
 
 async function cropAndSave() {
   if (!cropContainer.value || !imgElement.value) return;
+
   const containerRect = cropContainer.value.getBoundingClientRect();
   const imgRect = imgElement.value.getBoundingClientRect();
 
-  try {
-    const result = await processCanvasCrop(
-      imgElement.value || props.imageSrc,
-      { offsetX: position.x, offsetY: position.y, zoom: zoom.value },
-      containerRect,
-      imgRect
+  // Видоискатель 360x135 с отступом 16px
+  const viewfinderLeft = containerRect.left + 16;
+  const viewfinderTop = containerRect.top + 16;
+
+  // Позиция видоискателя относительно отображаемого изображения
+  const cropXInDisplayed = viewfinderLeft - imgRect.left;
+  const cropYInDisplayed = viewfinderTop - imgRect.top;
+
+  // Масштаб отображаемого к натуральному размеру исходника
+  const scaleRatio = naturalWidth.value / imgRect.width;
+
+  const sourceX = cropXInDisplayed * scaleRatio;
+  const sourceY = cropYInDisplayed * scaleRatio;
+  const sourceW = VIEWFINDER_WIDTH * scaleRatio;
+  const sourceH = VIEWFINDER_HEIGHT * scaleRatio;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = TARGET_WIDTH;
+  canvas.height = TARGET_HEIGHT;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(
+      img,
+      sourceX,
+      sourceY,
+      sourceW,
+      sourceH,
+      0,
+      0,
+      TARGET_WIDTH,
+      TARGET_HEIGHT
     );
-    emit('crop-complete', result);
-    emit('update:modelValue', false);
-  } catch (err) {
-    console.error('cropAndSave error:', err);
-  }
+
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        const base64 = canvas.toDataURL('image/jpeg', 0.92);
+        emit('crop-complete', { base64, blob });
+        emit('update:modelValue', false);
+      },
+      'image/jpeg',
+      0.92
+    );
+  };
+  img.src = props.imageSrc;
 }
 </script>

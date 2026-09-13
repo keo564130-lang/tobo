@@ -116,11 +116,12 @@
         <M3Button
           variant="filled"
           size="md"
-          :disabled="!content.trim() && mediaUrls.length === 0"
-          :loading="isCompressing"
+          :disabled="isSubmitting || (!content.trim() && mediaUrls.length === 0)"
+          :loading="isSubmitting || isCompressing"
           @click="submitPost"
         >
-          Опубликовать
+          <span v-if="isSubmitting" class="w-4 h-4 border-2 border-primary-on border-t-transparent rounded-full animate-spin mr-1.5" />
+          <span>{{ isSubmitting ? 'Публикация...' : 'Опубликовать' }}</span>
         </M3Button>
       </div>
     </div>
@@ -155,6 +156,7 @@ const mediaUrls = ref<string[]>([]);
 const disableComments = ref(false);
 const audience = ref<PostAudience>('all');
 const isCompressing = ref(false);
+const isSubmitting = ref(false);
 
 async function handleFileUpload(e: Event) {
   const target = e.target as HTMLInputElement;
@@ -183,20 +185,26 @@ function removeMedia(idx: number) {
 
 async function submitPost() {
   if (!content.value.trim() && mediaUrls.value.length === 0) return;
+  if (isSubmitting.value) return;
 
-  await feedStore.createPost(
-    content.value.trim(),
-    [...mediaUrls.value],
-    disableComments.value,
-    audience.value
-  );
+  isSubmitting.value = true;
+  try {
+    await feedStore.createPost(
+      content.value.trim(),
+      [...mediaUrls.value],
+      disableComments.value,
+      audience.value
+    );
 
-  content.value = '';
-  mediaUrls.value = [];
-  disableComments.value = false;
-  audience.value = 'all';
+    content.value = '';
+    mediaUrls.value = [];
+    disableComments.value = false;
+    audience.value = 'all';
 
-  emit('update:modelValue', false);
-  toastStore.show('Запись успешно опубликована в ленте!', 'success');
+    emit('update:modelValue', false);
+    toastStore.show('Запись успешно опубликована в ленте!', 'success');
+  } finally {
+    isSubmitting.value = false;
+  }
 }
 </script>

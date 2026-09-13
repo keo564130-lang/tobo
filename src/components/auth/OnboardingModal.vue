@@ -157,7 +157,7 @@
           <!-- 1. ОБЛОЖКА ПРОФИЛЯ (COVER) -->
           <div>
             <label class="block text-xs font-semibold text-surface-on mb-1.5">Обложка профиля</label>
-            <div class="relative w-full h-28 sm:h-32 rounded-3xl overflow-hidden border border-surface-high/50 bg-surface-low group">
+            <div class="relative w-full h-36 sm:h-40 rounded-3xl overflow-hidden border border-surface-high/50 bg-surface-low group shadow-xs">
               <img
                 :src="coverUrl || alexCoverSvg"
                 alt="Обложка"
@@ -166,7 +166,7 @@
               <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
               <label
                 for="onboarding_cover_file"
-                class="absolute right-3 bottom-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-xs text-white text-xs font-medium hover:bg-black/80 cursor-pointer transition-all m3-press-effect"
+                class="absolute right-3 bottom-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-medium hover:bg-black/80 cursor-pointer transition-all m3-press-effect shadow-sm"
               >
                 <span class="material-symbols-rounded text-sm">photo_camera</span>
                 <span>Выбрать обложку</span>
@@ -181,15 +181,15 @@
               </label>
             </div>
 
-            <!-- 4 пастельных пресета обложек -->
-            <div class="flex items-center gap-2 overflow-x-auto py-1.5 mt-1.5">
+            <!-- 4 пастельных пресета обложек: идеальная сетка grid-cols-4, ничего не вылезает за экран -->
+            <div class="grid grid-cols-4 gap-2 w-full mt-2">
               <button
                 v-for="preset in presetCovers"
                 :key="preset.label"
                 type="button"
                 :title="preset.label"
-                class="h-8 w-16 rounded-xl border-2 transition-all shrink-0 m3-press-effect overflow-hidden cursor-pointer"
-                :class="coverUrl === preset.url ? 'border-primary ring-2 ring-primary/40 scale-105' : 'border-transparent opacity-75 hover:opacity-100'"
+                class="h-10 w-full rounded-2xl border-2 transition-all m3-press-effect overflow-hidden cursor-pointer"
+                :class="coverUrl === preset.url ? 'border-primary ring-2 ring-primary/40 scale-[1.02]' : 'border-transparent opacity-75 hover:opacity-100'"
                 @click="coverUrl = preset.url"
               >
                 <img :src="preset.url" :alt="preset.label" class="w-full h-full object-cover" />
@@ -352,6 +352,12 @@
       :image-src="cropperImageSrc"
       @crop-complete="handleCropComplete"
     />
+
+    <CoverCropperModal
+      v-model="showCoverCropperModal"
+      :image-src="coverCropperImageSrc"
+      @crop-complete="handleCoverCropComplete"
+    />
   </div>
 </template>
 
@@ -359,6 +365,7 @@
 import { ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import AvatarCropperModal from '@/components/profile/AvatarCropperModal.vue';
+import CoverCropperModal from '@/components/profile/CoverCropperModal.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useToastStore } from '@/stores/toast';
 import {
@@ -412,6 +419,8 @@ const usernameError = ref('');
 // Кроппер
 const showCropperModal = ref(false);
 const cropperImageSrc = ref('');
+const showCoverCropperModal = ref(false);
+const coverCropperImageSrc = ref('');
 
 // Пресеты
 const presetCovers = [
@@ -511,13 +520,18 @@ function handleCoverUpload(e: Event) {
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        coverUrl.value = reader.result;
-        toastStore.show('Обложка загружена', 'info');
+        coverCropperImageSrc.value = reader.result;
+        showCoverCropperModal.value = true;
       }
     };
     reader.readAsDataURL(file);
     target.value = '';
   }
+}
+
+function handleCoverCropComplete(result: { base64: string; blob?: Blob }) {
+  coverUrl.value = result.base64;
+  toastStore.show('Обложка профиля успешно кадрирована', 'success');
 }
 
 async function handleCompleteOnboarding() {

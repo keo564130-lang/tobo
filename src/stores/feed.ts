@@ -11,7 +11,18 @@ import { localStore, supabase, isSupabaseConfigured } from '@/lib/supabase';
 export const useFeedStore = defineStore('feed', () => {
   const posts = ref<Post[]>(isSupabaseConfigured() ? [] : localStore.getRankedFeed());
   const isLoading = ref(false);
+  const isCreatingPost = ref(false);
   const commentsMap = ref<Record<string, PostComment[]>>({});
+
+  function deduplicatePosts(items: Post[]): Post[] {
+    const map = new Map<string, Post>();
+    items.forEach(p => {
+      if (p && p.id) {
+        map.set(p.id, p);
+      }
+    });
+    return Array.from(map.values());
+  }
 
   async function refreshFeed() {
     isLoading.value = true;
@@ -24,7 +35,7 @@ export const useFeedStore = defineStore('feed', () => {
         });
 
         if (!error && data) {
-          posts.value = data.map((row: any) => ({
+          const mappedPosts: Post[] = data.map((row: any) => ({
             id: row.id,
             author_id: row.author_id,
             author: {
@@ -48,6 +59,7 @@ export const useFeedStore = defineStore('feed', () => {
             created_at: row.created_at,
             rank_score: Number(row.rank_score)
           }));
+          posts.value = deduplicatePosts(mappedPosts);
           return;
         }
 
@@ -72,7 +84,7 @@ export const useFeedStore = defineStore('feed', () => {
           .limit(30);
 
         if (!directError && directPosts) {
-          posts.value = directPosts.map((row: any) => ({
+          const mappedPosts: Post[] = directPosts.map((row: any) => ({
             id: row.id,
             author_id: row.author_id,
             author: row.author ? {
@@ -96,6 +108,7 @@ export const useFeedStore = defineStore('feed', () => {
             created_at: row.created_at,
             rank_score: 0
           }));
+          posts.value = deduplicatePosts(mappedPosts);
           return;
         }
 
@@ -114,7 +127,7 @@ export const useFeedStore = defineStore('feed', () => {
     }
 
     if (!isSupabaseConfigured()) {
-      posts.value = localStore.getRankedFeed();
+      posts.value = deduplicatePosts(localStore.getRankedFeed());
     }
   }
 
@@ -124,8 +137,10 @@ export const useFeedStore = defineStore('feed', () => {
     disableComments: boolean = false, 
     audience: PostAudience = 'all'
   ) {
-    if (isSupabaseConfigured() && supabase) {
-      try {
+    if (isCreatingPost.value) return null;
+    isCreatingPost.value = true;
+    try {
+      if (isSupabaseConfigured() && supabase) {
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (!authUser) {
           throw new Error('Пользователь не авторизован');
@@ -143,16 +158,19 @@ export const useFeedStore = defineStore('feed', () => {
           await refreshFeed();
           return data;
         }
-      } catch (err) {
-        console.warn('Supabase post insert failed:', err);
+        return null;
+      } else {
+        // Офлайн режим
+        const localPost = localStore.createPost(content, mediaUrls, disableComments, audience);
+        refreshFeed();
+        return localPost;
       }
+    } catch (err) {
+      console.warn('Supabase post insert failed:', err);
       return null;
+    } finally {
+      isCreatingPost.value = false;
     }
-
-    // Офлайн режим
-    const localPost = localStore.createPost(content, mediaUrls, disableComments, audience);
-    refreshFeed();
-    return localPost;
   }
 
   async function toggleLike(postId: string) {

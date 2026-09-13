@@ -22,8 +22,7 @@ import {
   toboOfficialProfileMock, 
   initialPostsMock, 
   initialChatsMock, 
-  initialMessagesMock,
-  activeSessionsMock 
+  initialMessagesMock
 } from './mockData';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -91,9 +90,9 @@ class LocalDataStore {
     if (userCache && (userCache.includes('unsplash.com') || userCache.includes('user-me-001') || userCache.includes('Поляков'))) {
       localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     }
-    const messageCache = localStorage.getItem(STORAGE_KEYS.MESSAGES);
-    if (messageCache && messageCache.includes('unsplash.com')) {
-      localStorage.removeItem(STORAGE_KEYS.MESSAGES);
+    const sessionCache = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+    if (sessionCache && (sessionCache.includes('iPad') || sessionCache.includes('iPhone 15') || sessionCache.includes('session-1'))) {
+      localStorage.removeItem(STORAGE_KEYS.SESSIONS);
     }
 
     // 1. Инициализация профилей
@@ -138,9 +137,9 @@ class LocalDataStore {
       });
     }
 
-    // 6. Инициализация сессий
+    // 6. Инициализация сессий (без фейковых заглушек)
     const savedSessions = localStorage.getItem(STORAGE_KEYS.SESSIONS);
-    this.activeSessions = savedSessions ? JSON.parse(savedSessions) : [...activeSessionsMock];
+    this.activeSessions = savedSessions ? JSON.parse(savedSessions) : [];
 
     // 7. Инициализация черного списка
     const savedBlocked = localStorage.getItem(STORAGE_KEYS.BLOCKED);

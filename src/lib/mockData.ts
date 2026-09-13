@@ -350,32 +350,4 @@ export const initialMessagesMock: Record<string, Message[]> = {
   ]
 };
 
-export const activeSessionsMock: ActiveSession[] = [
-  {
-    id: 'session-1',
-    user_id: currentUserMock.id,
-    device: 'Windows PC / Рабочая станция',
-    browser: 'Chrome 128 (Desktop)',
-    ip_address: '178.62.204.14 (Москва)',
-    last_active: 'В сети сейчас',
-    is_current: true
-  },
-  {
-    id: 'session-2',
-    user_id: currentUserMock.id,
-    device: 'iPhone 15 Pro (PWA Standalone)',
-    browser: 'Safari Mobile 17.5',
-    ip_address: '94.25.180.22 (Москва)',
-    last_active: '24 минуты назад',
-    is_current: false
-  },
-  {
-    id: 'session-3',
-    user_id: currentUserMock.id,
-    device: 'iPad Pro 11"',
-    browser: 'Safari Mobile 17.4',
-    ip_address: '94.25.180.22 (Москва)',
-    last_active: '3 дня назад',
-    is_current: false
-  }
-];
+export const activeSessionsMock: ActiveSession[] = [];

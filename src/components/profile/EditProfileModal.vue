@@ -98,27 +98,28 @@
       <div>
         <label class="block text-xs font-semibold text-surface-on mb-1.5">Обложка профиля</label>
         <div class="flex flex-col gap-2">
-          <div class="relative w-full h-16 rounded-2xl overflow-hidden border border-surface-high/50 bg-surface-low">
+          <div class="relative w-full h-32 sm:h-36 rounded-3xl overflow-hidden border border-surface-high/50 bg-surface-low shadow-xs">
             <img
               :src="coverUrl || alexCoverSvg"
               alt="Обложка"
               class="w-full h-full object-cover"
             />
-            <label for="cover_file_input" class="absolute right-2 bottom-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-xs text-white text-[11px] font-medium hover:bg-black/70 cursor-pointer transition-colors m3-press-effect">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+            <label for="cover_file_input" class="absolute right-3 bottom-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-medium hover:bg-black/80 cursor-pointer transition-all m3-press-effect shadow-sm">
               <span class="material-symbols-rounded text-sm">photo_camera</span>
-              <span>Загрузить</span>
+              <span>Выбрать обложку</span>
               <input id="cover_file_input" name="cover_file" aria-label="Загрузить обложку" type="file" accept="image/*" class="hidden" @change="handleCoverUpload" />
             </label>
           </div>
-          <!-- Горизонтальные пресеты обложек -->
-          <div class="flex items-center gap-2 overflow-x-auto py-1">
+          <!-- 4 пастельных пресета обложек: идеальная сетка grid-cols-4 -->
+          <div class="grid grid-cols-4 gap-2 w-full mt-1">
             <button
               v-for="preset in presetCovers"
               :key="preset.label"
               type="button"
               :title="preset.label"
-              class="h-9 w-20 rounded-xl border-2 transition-all shrink-0 m3-press-effect overflow-hidden cursor-pointer"
-              :class="coverUrl === preset.url ? 'border-primary ring-2 ring-primary/40 scale-105' : 'border-transparent opacity-75 hover:opacity-100'"
+              class="h-10 w-full rounded-2xl border-2 transition-all m3-press-effect overflow-hidden cursor-pointer"
+              :class="coverUrl === preset.url ? 'border-primary ring-2 ring-primary/40 scale-[1.02]' : 'border-transparent opacity-75 hover:opacity-100'"
               @click="coverUrl = preset.url"
             >
               <img :src="preset.url" :alt="preset.label" class="w-full h-full object-cover" />
@@ -144,6 +145,13 @@
       :image-src="cropperImageSrc"
       @crop-complete="handleCropComplete"
     />
+
+    <!-- Прямоугольный видоискатель-кроппер обложки -->
+    <CoverCropperModal
+      v-model="showCoverCropperModal"
+      :image-src="coverCropperImageSrc"
+      @crop-complete="handleCoverCropComplete"
+    />
   </M3BottomSheet>
 </template>
 
@@ -152,6 +160,7 @@ import { ref, watch } from 'vue';
 import M3BottomSheet from '@/components/ui/M3BottomSheet.vue';
 import M3Button from '@/components/ui/M3Button.vue';
 import AvatarCropperModal from '@/components/profile/AvatarCropperModal.vue';
+import CoverCropperModal from '@/components/profile/CoverCropperModal.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useToastStore } from '@/stores/toast';
 import { 
@@ -199,6 +208,8 @@ const coverUrl = ref(authStore.user.cover_url || '');
 
 const showCropperModal = ref(false);
 const cropperImageSrc = ref('');
+const showCoverCropperModal = ref(false);
+const coverCropperImageSrc = ref('');
 
 function handleAvatarUpload(e: Event) {
   const target = e.target as HTMLInputElement;
@@ -228,12 +239,18 @@ function handleCoverUpload(e: Event) {
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        coverUrl.value = reader.result;
-        toastStore.show('Обложка загружена', 'info');
+        coverCropperImageSrc.value = reader.result;
+        showCoverCropperModal.value = true;
       }
     };
     reader.readAsDataURL(target.files[0]);
+    target.value = '';
   }
+}
+
+function handleCoverCropComplete(result: { base64: string; blob?: Blob }) {
+  coverUrl.value = result.base64;
+  toastStore.show('Обложка профиля успешно кадрирована', 'success');
 }
 
 watch(

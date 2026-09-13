@@ -146,6 +146,12 @@
         </div>
       </div>
     </div>
+
+    <!-- Полноэкранный просмотр медиа прямо на сайте (LightBox) -->
+    <ImageLightboxModal
+      v-model="showLightbox"
+      :image-url="lightboxUrl"
+    />
   </article>
 </template>
 
@@ -153,6 +159,7 @@
 import { ref, computed } from 'vue';
 import type { Post } from '@/types/database';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
+import ImageLightboxModal from '@/components/ui/ImageLightboxModal.vue';
 import { useFeedStore } from '@/stores/feed';
 import { useToastStore } from '@/stores/toast';
 
@@ -218,7 +225,11 @@ function handleBookmark() {
   }
 }
 
+const showLightbox = ref(false);
+const lightboxUrl = ref('');
+
 function openMedia(url: string) {
-  window.open(url, '_blank');
+  lightboxUrl.value = url;
+  showLightbox.value = true;
 }
 </script>
