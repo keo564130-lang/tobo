@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
-    <div v-if="modelValue" class="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div class="w-full max-w-lg rounded-4xl bg-surface-lowest border border-surface-high/60 p-6 shadow-elevation-4 flex flex-col items-center">
+    <div v-if="modelValue" class="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+      <div class="w-full max-w-lg rounded-4xl bg-surface-lowest border border-surface-high/60 p-4 sm:p-6 shadow-elevation-4 flex flex-col items-center">
         <!-- Шапка модалки -->
         <div class="w-full flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
@@ -21,7 +21,7 @@
         <!-- Область кадрирования с прямоугольным видоискателем (16:6) -->
         <div
           ref="cropContainer"
-          class="relative w-[360px] h-[135px] max-w-full rounded-2xl overflow-hidden bg-[#1A1C1E] select-none cursor-grab active:cursor-grabbing touch-none flex items-center justify-center shadow-inner border-2 border-white/90 ring-4 ring-black/40"
+          class="relative w-full max-w-[360px] aspect-[16/6] rounded-2xl overflow-hidden bg-[#1A1C1E] select-none cursor-grab active:cursor-grabbing touch-none flex items-center justify-center shadow-inner"
           @mousedown="startDrag"
           @touchstart="startDragTouch"
           @wheel.prevent="onWheel"
@@ -43,8 +43,11 @@
             @load="onImageLoad"
           />
 
+          <!-- Белая рамка видоискателя и легкая внешняя тень (overlay) -->
+          <div class="absolute inset-0 rounded-2xl border-2 border-white/90 ring-4 ring-black/40 pointer-events-none" />
+
           <!-- Легкие белые угловые маркеры видоискателя (L-markers) -->
-          <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 360 135">
+          <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 360 135" preserveAspectRatio="none">
             <path d="M 4 20 L 4 4 L 20 4" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
             <path d="M 340 4 L 356 4 L 356 20" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
             <path d="M 4 115 L 4 131 L 20 131" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
@@ -105,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, reactive, computed, watch, nextTick, onUnmounted } from 'vue';
 
 export interface CoverCropResult {
   base64: string;
@@ -138,22 +141,38 @@ const VIEWFINDER_HEIGHT = 135;
 const TARGET_WIDTH = 1200;
 const TARGET_HEIGHT = 450;
 
+const containerWidth = ref(VIEWFINDER_WIDTH);
+const containerHeight = ref(VIEWFINDER_HEIGHT);
+
+function measureContainer() {
+  if (cropContainer.value) {
+    const rect = cropContainer.value.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      containerWidth.value = rect.width;
+      containerHeight.value = rect.height;
+    }
+  }
+}
+
 function updateImageDimensions(width: number, height: number) {
   if (!width || !height) return;
   naturalWidth.value = width;
   naturalHeight.value = height;
-  // Покрываем видоискатель 360x135
-  const coverScale = Math.max(VIEWFINDER_WIDTH / width, VIEWFINDER_HEIGHT / height);
+  measureContainer();
+  const cw = containerWidth.value || VIEWFINDER_WIDTH;
+  const ch = containerHeight.value || VIEWFINDER_HEIGHT;
+  // Покрываем видоискатель (16:6)
+  const coverScale = Math.max(cw / width, ch / height);
   baseScale.value = coverScale;
 }
 
 const displayedWidth = computed(() => {
-  if (!naturalWidth.value) return VIEWFINDER_WIDTH * zoom.value;
+  if (!naturalWidth.value) return containerWidth.value * zoom.value;
   return Math.round(naturalWidth.value * baseScale.value * zoom.value);
 });
 
 const displayedHeight = computed(() => {
-  if (!naturalHeight.value) return VIEWFINDER_HEIGHT * zoom.value;
+  if (!naturalHeight.value) return containerHeight.value * zoom.value;
   return Math.round(naturalHeight.value * baseScale.value * zoom.value);
 });
 
@@ -165,21 +184,35 @@ function onImageLoad(e?: Event) {
 
 watch(
   () => [props.modelValue, props.imageSrc],
-  ([isOpen]) => {
+  async ([isOpen]) => {
     if (isOpen && props.imageSrc) {
       zoom.value = 1.0;
       position.x = 0;
       position.y = 0;
+
+      await nextTick();
+      measureContainer();
 
       const img = new Image();
       img.onload = () => {
         updateImageDimensions(img.naturalWidth, img.naturalHeight);
       };
       img.src = props.imageSrc;
+      window.addEventListener('resize', measureContainer);
+    } else {
+      window.removeEventListener('resize', measureContainer);
     }
   },
   { immediate: true }
 );
+
+onUnmounted(() => {
+  window.removeEventListener('resize', measureContainer);
+  window.removeEventListener('mousemove', onDrag);
+  window.removeEventListener('mouseup', stopDrag);
+  window.removeEventListener('touchmove', onDragTouch);
+  window.removeEventListener('touchend', stopDragTouch);
+});
 
 function startDrag(e: MouseEvent) {
   isDragging.value = true;
@@ -206,12 +239,13 @@ function startDragTouch(e: TouchEvent) {
   isDragging.value = true;
   dragStart.x = e.touches[0].clientX - position.x;
   dragStart.y = e.touches[0].clientY - position.y;
-  window.addEventListener('touchmove', onDragTouch);
+  window.addEventListener('touchmove', onDragTouch, { passive: false });
   window.addEventListener('touchend', stopDragTouch);
 }
 
 function onDragTouch(e: TouchEvent) {
   if (!isDragging.value || e.touches.length !== 1) return;
+  e.preventDefault();
   position.x = e.touches[0].clientX - dragStart.x;
   position.y = e.touches[0].clientY - dragStart.y;
 }
@@ -233,13 +267,17 @@ async function cropAndSave() {
   const containerRect = cropContainer.value.getBoundingClientRect();
   const imgRect = imgElement.value.getBoundingClientRect();
 
-  const scaleX = TARGET_WIDTH / containerRect.width;
-  const scaleY = TARGET_HEIGHT / containerRect.height;
+  if (containerRect.width <= 0 || imgRect.width <= 0) return;
 
-  const drawX = (imgRect.left - containerRect.left) * scaleX;
-  const drawY = (imgRect.top - containerRect.top) * scaleY;
-  const drawW = imgRect.width * scaleX;
-  const drawH = imgRect.height * scaleY;
+  // КРИТИЧЕСКИ ВАЖНО: ЕДИНЫЙ ИЗОТРОПНЫЙ МАСШТАБ.
+  // Использование TARGET_WIDTH / containerRect.width гарантирует 0% искажения по X и Y,
+  // так как соотношение сторон 16:6 (8:3) строго выдержано контейнером и выходным Canvas.
+  const scale = TARGET_WIDTH / containerRect.width;
+
+  const drawX = (imgRect.left - containerRect.left) * scale;
+  const drawY = (imgRect.top - containerRect.top) * scale;
+  const drawW = imgRect.width * scale;
+  const drawH = imgRect.height * scale;
 
   const canvas = document.createElement('canvas');
   canvas.width = TARGET_WIDTH; // 1200
