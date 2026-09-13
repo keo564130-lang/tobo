@@ -51,4 +51,6 @@ Expressive: пастельные палитры (Sky, Lavender, Mint, Peach), п
 • Агент по коду — Чистая логика TypeScript, Pinia сторы, Supabase SDK (без стилей).
 • Агент по дизайну — Компоненты Vue, Material 3 Expressive, кроппер аватарки, Tailwind.
 • Младший тестер — Тестирование кликов, сценариев и верстки в Google Chrome.
+• Агент безопасности и модерации (security_agent) — Защита от XSS/инъекций, аудит RLS, модерация жалоб (reports) и черные списки (blocked_users).
+• Агент скорости и PWA (performance_agent) — Оптимизация бандлов Vite, Code-Splitting, кэширование Service Worker, 60 FPS и сжатие медиа.
 ================================================================================

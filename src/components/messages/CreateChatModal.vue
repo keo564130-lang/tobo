@@ -177,7 +177,7 @@
                 class="w-full h-full object-cover"
               />
               <div v-else class="flex flex-col items-center justify-center text-surface-onVariant/60 group-hover:text-primary transition-colors">
-                <span class="material-symbols-rounded text-2xl">add_a_photo</span>
+                <span class="material-symbols-rounded text-xl">add_a_photo</span>
               </div>
             </div>
             <button
@@ -315,7 +315,7 @@
                 class="w-full h-full object-cover"
               />
               <div v-else class="flex flex-col items-center justify-center text-surface-onVariant/60 group-hover:text-primary transition-colors">
-                <span class="material-symbols-rounded text-2xl">add_a_photo</span>
+                <span class="material-symbols-rounded text-xl">add_a_photo</span>
               </div>
             </div>
             <button

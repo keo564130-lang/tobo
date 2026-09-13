@@ -36,7 +36,7 @@
       <div>
         <label for="edit_username" class="block text-xs font-semibold text-surface-on mb-1">Юзернейм (@username)</label>
         <div class="relative">
-          <span class="absolute left-3.5 top-2 text-surface-onVariant/60 text-sm">@</span>
+          <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-onVariant/60 text-sm font-semibold leading-none flex items-center justify-center pointer-events-none select-none">@</span>
           <input
             id="edit_username"
             name="username"
@@ -73,7 +73,7 @@
           <div class="flex-1 flex flex-col gap-2 min-w-0">
             <!-- Кнопка загрузки файла -->
             <label for="avatar_file_input" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-low border border-surface-high/60 text-xs font-medium text-surface-on hover:bg-surface-high cursor-pointer transition-colors m3-press-effect w-fit">
-              <span class="material-symbols-rounded text-base text-primary">upload</span>
+              <span class="material-symbols-rounded text-[18px] text-primary leading-none flex items-center justify-center">upload</span>
               <span>Загрузить фото</span>
               <input id="avatar_file_input" name="avatar_file" aria-label="Загрузить аватар" type="file" accept="image/*" class="hidden" @change="handleAvatarUpload" />
             </label>
@@ -107,8 +107,8 @@
             />
             <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
             <label for="cover_file_input" class="absolute right-3 bottom-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-medium hover:bg-black/80 cursor-pointer transition-all m3-press-effect shadow-sm">
-              <span class="material-symbols-rounded text-sm">photo_camera</span>
-              <span>Выбрать обложку</span>
+              <span class="material-symbols-rounded text-[16px] leading-none flex items-center justify-center">photo_camera</span>
+              <span class="leading-none">Выбрать обложку</span>
               <input id="cover_file_input" name="cover_file" aria-label="Загрузить обложку" type="file" accept="image/*" class="hidden" @change="handleCoverUpload" />
             </label>
           </div>

@@ -42,7 +42,7 @@
               Электронная почта (Email) *
             </label>
             <div class="relative">
-              <span class="absolute left-3.5 top-3 text-surface-onVariant/60 material-symbols-rounded text-lg select-none">
+              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-onVariant/60 material-symbols-rounded text-[18px] leading-none flex items-center justify-center pointer-events-none select-none">
                 mail
               </span>
               <input
@@ -66,7 +66,7 @@
               Пароль *
             </label>
             <div class="relative">
-              <span class="absolute left-3.5 top-3 text-surface-onVariant/60 material-symbols-rounded text-lg select-none">
+              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-onVariant/60 material-symbols-rounded text-[18px] leading-none flex items-center justify-center pointer-events-none select-none">
                 lock
               </span>
               <input
@@ -84,10 +84,10 @@
               <button
                 type="button"
                 aria-label="Показать пароль"
-                class="absolute right-3 top-2.5 text-surface-onVariant/60 hover:text-surface-on transition-colors cursor-pointer"
+                class="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center text-surface-onVariant/60 hover:text-surface-on hover:bg-surface-high/50 transition-colors cursor-pointer"
                 @click="showPassword = !showPassword"
               >
-                <span class="material-symbols-rounded text-lg">
+                <span class="material-symbols-rounded text-[18px] leading-none flex items-center justify-center">
                   {{ showPassword ? 'visibility_off' : 'visibility' }}
                 </span>
               </button>
@@ -99,10 +99,10 @@
           <div class="pt-2 flex flex-col gap-2">
             <button
               type="submit"
-              class="w-full py-3 rounded-full bg-primary text-primary-on font-bold text-sm shadow-sm hover:opacity-95 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2"
+              class="w-full py-3 rounded-full bg-primary text-primary-on font-bold text-sm shadow-sm hover:opacity-95 active:scale-[0.99] transition-all cursor-pointer inline-flex items-center justify-center gap-2"
             >
               <span>Продолжить</span>
-              <span class="material-symbols-rounded text-base">arrow_forward</span>
+              <span class="material-symbols-rounded text-base leading-none flex items-center justify-center">arrow_forward</span>
             </button>
             <button
               type="button"
@@ -132,6 +132,10 @@
             </button>
             <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary-container text-primary-onContainer leading-normal">
               Шаг 2 из 2
+            </span>
+            <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center gap-1">
+              <span class="material-symbols-rounded text-xs">science</span>
+              <span>Alpha v0.1</span>
             </span>
           </div>
           <button
@@ -168,8 +172,8 @@
                 for="onboarding_cover_file"
                 class="absolute right-3 bottom-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-medium hover:bg-black/80 cursor-pointer transition-all m3-press-effect shadow-sm"
               >
-                <span class="material-symbols-rounded text-sm">photo_camera</span>
-                <span>Выбрать обложку</span>
+                <span class="material-symbols-rounded text-[16px] leading-none flex items-center justify-center">photo_camera</span>
+                <span class="leading-none">Выбрать обложку</span>
                 <input
                   id="onboarding_cover_file"
                   name="cover_file"
@@ -210,7 +214,7 @@
                 class="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-primary text-primary-on flex items-center justify-center shadow-elevation-1 cursor-pointer hover:opacity-90 m3-press-effect border-2 border-surface-lowest transition-transform active:scale-95"
                 title="Загрузить и кадрировать фото"
               >
-                <span class="material-symbols-rounded text-sm">photo_camera</span>
+                <span class="material-symbols-rounded text-[15px] leading-none flex items-center justify-center">photo_camera</span>
                 <input
                   id="onboarding_avatar_file"
                   name="avatar_file"
@@ -225,10 +229,10 @@
             <div class="flex items-center gap-2 mt-2">
               <label
                 for="onboarding_avatar_file"
-                class="text-xs text-primary font-semibold hover:underline cursor-pointer flex items-center gap-1"
+                class="text-xs text-primary font-semibold hover:underline cursor-pointer inline-flex items-center gap-1"
               >
-                <span class="material-symbols-rounded text-sm">crop</span>
-                <span>Выбрать и кадрировать фото</span>
+                <span class="material-symbols-rounded text-[16px] leading-none">crop</span>
+                <span class="leading-none">Выбрать и кадрировать фото</span>
               </label>
             </div>
 
@@ -290,7 +294,7 @@
               Юзернейм (@username) *
             </label>
             <div class="relative">
-              <span class="absolute left-3.5 top-2.5 text-surface-onVariant/60 text-sm font-semibold select-none">@</span>
+              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-onVariant/60 text-sm font-semibold leading-none flex items-center justify-center pointer-events-none select-none">@</span>
               <input
                 id="onboarding_username"
                 name="username"
@@ -336,10 +340,10 @@
             </button>
             <button
               type="submit"
-              class="px-6 py-2.5 rounded-full bg-primary text-primary-on font-bold text-xs shadow-sm hover:opacity-95 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+              class="px-6 py-2.5 rounded-full bg-primary text-primary-on font-bold text-xs shadow-sm hover:opacity-95 active:scale-95 transition-all cursor-pointer inline-flex items-center justify-center gap-1.5"
             >
               <span>Завершить и перейти в tobo!</span>
-              <span class="material-symbols-rounded text-base">arrow_forward</span>
+              <span class="material-symbols-rounded text-base leading-none flex items-center justify-center">arrow_forward</span>
             </button>
           </div>
         </form>

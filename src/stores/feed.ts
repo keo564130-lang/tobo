@@ -5,7 +5,7 @@
 
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { Post, PostComment, PostAudience } from '@/types/database';
+import type { Post, PostComment, PostAudience, Chat } from '@/types/database';
 import { localStore, supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuthStore } from './auth';
 import { useChatStore } from './chat';
@@ -37,9 +37,31 @@ function loadHiddenPosts(userId?: string): Set<string> {
   return loadIdSetFromStorage(getHiddenPostsKey(userId));
 }
 
+function getReportedPostsKey(userId?: string): string {
+  return `tobo_reported_posts_${userId || 'guest'}`;
+}
+
+function loadReportedPosts(userId?: string): Set<string> {
+  return loadIdSetFromStorage(getReportedPostsKey(userId));
+}
+
 export const useFeedStore = defineStore('feed', () => {
   const authStore = useAuthStore();
   const hiddenPostIds = ref<Set<string>>(loadHiddenPosts(authStore.user?.id));
+  const reportedPostIds = ref<Set<string>>(loadReportedPosts(authStore.user?.id));
+  const lastReportTime = ref<number>(0);
+  const REPORT_COOLDOWN_MS = 15000; // 15 секунд кулдаун между отправками жалоб
+
+  function hasReportedPost(postId: string): boolean {
+    return reportedPostIds.value.has(postId);
+  }
+
+  function getReportCooldown(): number {
+    const elapsed = Date.now() - lastReportTime.value;
+    if (elapsed >= REPORT_COOLDOWN_MS) return 0;
+    return Math.ceil((REPORT_COOLDOWN_MS - elapsed) / 1000);
+  }
+
   const posts = ref<Post[]>(
     isSupabaseConfigured()
       ? []
@@ -112,7 +134,23 @@ export const useFeedStore = defineStore('feed', () => {
       }
 
       const applyInteractions = (items: Post[]): Post[] => {
-        const filtered = items.filter(post => !hiddenSet.has(post.id));
+        const chatStore = useChatStore();
+        const filtered = items.filter(post => {
+          if (hiddenSet.has(post.id)) return false;
+          // Проверка доступа к записям закрытых каналов (is_public === false)
+          if (post.channel_id) {
+            const channel = post.channel || chatStore.chats.find(c => c.id === post.channel_id);
+            if (channel && channel.settings?.is_public === false) {
+              const isDev = Boolean(authStore.isDeveloper);
+              const isCreator = channel.created_by === currentUserId || post.author_id === currentUserId;
+              const isMember = Boolean(channel.members && channel.members.some(m => m.user_id === currentUserId));
+              if (!isDev && !isCreator && !isMember) {
+                return false;
+              }
+            }
+          }
+          return true;
+        });
         filtered.forEach(post => {
           post.is_liked = likedSet.has(post.id);
           post.is_reposted = repostedSet.has(post.id);
@@ -151,7 +189,10 @@ export const useFeedStore = defineStore('feed', () => {
             reposts_count: Number(row.reposts_count),
             views_count: Number(row.views_count),
             created_at: row.created_at,
-            rank_score: Number(row.rank_score)
+            rank_score: Number(row.rank_score),
+            author_type: row.author_type || 'user',
+            channel_id: row.channel_id || null,
+            channel: row.channel || null
           }));
           posts.value = deduplicatePosts(applyInteractions(mappedPosts)).filter(p => !hiddenPostIds.value.has(p.id));
           return;
@@ -172,6 +213,8 @@ export const useFeedStore = defineStore('feed', () => {
             reposts_count,
             views_count,
             created_at,
+            author_type,
+            channel_id,
             author:profiles(id, username, first_name, last_name, avatar_url, is_developer)
           `)
           .order('created_at', { ascending: false })
@@ -200,7 +243,10 @@ export const useFeedStore = defineStore('feed', () => {
             reposts_count: Number(row.reposts_count || 0),
             views_count: Number(row.views_count || 0),
             created_at: row.created_at,
-            rank_score: 0
+            rank_score: 0,
+            author_type: row.author_type || 'user',
+            channel_id: row.channel_id || null,
+            channel: row.channel || null
           }));
           posts.value = deduplicatePosts(applyInteractions(mappedPosts)).filter(p => !hiddenPostIds.value.has(p.id));
           return;
@@ -231,7 +277,10 @@ export const useFeedStore = defineStore('feed', () => {
     content: string, 
     mediaUrls: string[] = [], 
     disableComments: boolean = false, 
-    audience: PostAudience = 'all'
+    audience: PostAudience = 'all',
+    authorType: 'user' | 'channel' = 'user',
+    channelId?: string | null,
+    channel?: Chat | null
   ) {
     if (isCreatingPost.value) return null;
     isCreatingPost.value = true;
@@ -242,13 +291,26 @@ export const useFeedStore = defineStore('feed', () => {
           throw new Error('Пользователь не авторизован');
         }
 
-        const { data, error } = await supabase.from('posts').insert({
+        const insertPayload: any = {
           author_id: authUser.id,
           content,
           media_urls: mediaUrls,
           disable_comments: disableComments,
-          audience
-        }).select().single();
+          audience,
+          author_type: authorType,
+          channel_id: channelId || null
+        };
+
+        let { data, error } = await supabase.from('posts').insert(insertPayload).select().single();
+
+        // Если в таблице posts еще нет колонок author_type / channel_id — повторяем без них
+        if (error && (error.message?.includes('author_type') || error.message?.includes('channel_id'))) {
+          delete insertPayload.author_type;
+          delete insertPayload.channel_id;
+          const retry = await supabase.from('posts').insert(insertPayload).select().single();
+          data = retry.data;
+          error = retry.error;
+        }
 
         if (!error && data) {
           await refreshFeed();
@@ -257,7 +319,15 @@ export const useFeedStore = defineStore('feed', () => {
         return null;
       } else {
         // Офлайн режим
-        const localPost = localStore.createPost(content, mediaUrls, disableComments, audience);
+        const localPost = localStore.createPost(
+          content, 
+          mediaUrls, 
+          disableComments, 
+          audience, 
+          authorType, 
+          channelId, 
+          channel
+        );
         refreshFeed();
         return localPost;
       }
@@ -582,10 +652,24 @@ export const useFeedStore = defineStore('feed', () => {
   }
 
   function getUserPosts(userId: string): Post[] {
-    if (isSupabaseConfigured()) {
-      return posts.value.filter(p => p.author_id === userId);
-    }
-    return localStore.getUserPosts(userId);
+    const list = isSupabaseConfigured()
+      ? posts.value.filter(p => p.author_id === userId)
+      : localStore.getUserPosts(userId);
+
+    const chatStore = useChatStore();
+    const currentUserId = authStore.user?.id;
+    return list.filter(p => {
+      if (p.channel_id) {
+        const channel = p.channel || chatStore.chats.find(c => c.id === p.channel_id);
+        if (channel && channel.settings?.is_public === false) {
+          const isDev = Boolean(authStore.isDeveloper);
+          const isCreator = channel.created_by === currentUserId || p.author_id === currentUserId;
+          const isMember = Boolean(channel.members && channel.members.some(m => m.user_id === currentUserId));
+          if (!isDev && !isCreator && !isMember) return false;
+        }
+      }
+      return true;
+    });
   }
 
   function hidePost(postId: string): void {
@@ -604,13 +688,27 @@ export const useFeedStore = defineStore('feed', () => {
     description: string,
     screenshots: (string | File)[] = []
   ): Promise<boolean> {
+    if (hasReportedPost(postId)) {
+      console.warn(`[Security] Post #${postId} was already reported by current user.`);
+      return true;
+    }
+
+    const cooldown = getReportCooldown();
+    if (cooldown > 0) {
+      throw new Error(`Пожалуйста, подождите ${cooldown} сек. перед повторной отправкой жалобы.`);
+    }
+
+    // Санитайзинг и усечение полей для предотвращения атак переполнения
+    const safeReason = (reason || 'Другое').trim().slice(0, 100);
+    const safeDescription = (description || '').trim().slice(0, 1000);
+
     let authUserId: string | null = authStore.user?.id || null;
 
-    // Нормализация скриншотов: File преобразуем в Data URL / имя файла
+    // Нормализация скриншотов: File преобразуем в Data URL / имя файла (макс 3 файла)
     let resolvedUrls: string[] = [];
     try {
       resolvedUrls = await Promise.all(
-        screenshots.map(async (item) => {
+        screenshots.slice(0, 3).map(async (item) => {
           if (typeof item === 'string') return item;
           if (typeof File !== 'undefined' && item instanceof File) {
             return new Promise<string>((resolve) => {
@@ -624,7 +722,7 @@ export const useFeedStore = defineStore('feed', () => {
         })
       );
     } catch {
-      resolvedUrls = screenshots.map(s => typeof s === 'string' ? s : (s as File).name || 'screenshot.png');
+      resolvedUrls = screenshots.slice(0, 3).map(s => typeof s === 'string' ? s : (s as File).name || 'screenshot.png');
     }
 
     const reportPayload = {
@@ -632,8 +730,8 @@ export const useFeedStore = defineStore('feed', () => {
       reporter_id: authUserId,
       target_type: 'post',
       target_id: postId,
-      reason,
-      description: description || '',
+      reason: safeReason,
+      description: safeDescription,
       media_urls: resolvedUrls,
       created_at: new Date().toISOString()
     };
@@ -652,8 +750,8 @@ export const useFeedStore = defineStore('feed', () => {
           reporter_id: authUserId,
           target_type: 'post',
           target_id: postId,
-          reason,
-          description: description || '',
+          reason: safeReason,
+          description: safeDescription,
           media_urls: resolvedUrls
         });
 
@@ -672,7 +770,7 @@ export const useFeedStore = defineStore('feed', () => {
       try {
         const targetPost = posts.value.find(p => p.id === postId) || localStore.getPost(postId);
         if (targetPost?.author_id) {
-          localStore.reportUser(targetPost.author_id, reason, `${description || ''} [Post: ${postId}]`);
+          localStore.reportUser(targetPost.author_id, safeReason, `${safeDescription} [Post: ${postId}]`);
         }
       } catch (localErr) {
         console.warn('localStore.reportUser fallback error:', localErr);
@@ -682,16 +780,22 @@ export const useFeedStore = defineStore('feed', () => {
         const rawReports = localStorage.getItem('tobo_reports');
         const list = rawReports ? JSON.parse(rawReports) : [];
         list.push(reportPayload);
-        localStorage.setItem('tobo_reports', JSON.stringify(list));
+        const trimmed = list.slice(-50);
+        localStorage.setItem('tobo_reports', JSON.stringify(trimmed));
       } catch (storageErr) {
         console.warn('localStorage tobo_reports save error:', storageErr);
       }
     }
 
+    // Фиксация успешного репорта в сессии / localStorage для анти-спама
+    reportedPostIds.value.add(postId);
+    saveIdSetToStorage(getReportedPostsKey(authUserId || 'guest'), reportedPostIds.value);
+    lastReportTime.value = Date.now();
+
     // Подготовка структуры данных для последующей отправки на email модераторам
     const emailDispatchData = {
       to: 'moderation@tobo.me',
-      subject: `[Tobo Moderation] Жалоба на публикацию #${postId} (${reason})`,
+      subject: `[Tobo Moderation] Жалоба на публикацию #${postId} (${safeReason})`,
       report: reportPayload,
       submitted_at: new Date().toISOString()
     };
@@ -700,7 +804,8 @@ export const useFeedStore = defineStore('feed', () => {
     try {
       const pendingEmails = JSON.parse(localStorage.getItem('tobo_pending_moderator_reports') || '[]');
       pendingEmails.push(emailDispatchData);
-      localStorage.setItem('tobo_pending_moderator_reports', JSON.stringify(pendingEmails));
+      const trimmedEmails = pendingEmails.slice(-50);
+      localStorage.setItem('tobo_pending_moderator_reports', JSON.stringify(trimmedEmails));
     } catch (cacheErr) {
       console.warn('Failed to cache pending moderator email report:', cacheErr);
     }
@@ -724,6 +829,8 @@ export const useFeedStore = defineStore('feed', () => {
     commentsMap,
     hiddenPostIds,
     hidePost,
+    hasReportedPost,
+    getReportCooldown,
     submitReport,
     refreshFeed,
     createPost,

@@ -12,7 +12,7 @@
         <div class="flex items-center justify-between pb-2 border-b border-surface-high/40">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
-              <span class="material-symbols-rounded text-2xl">flag</span>
+              <span class="material-symbols-rounded text-xl">flag</span>
             </div>
             <div>
               <h3 class="text-base font-bold text-surface-on leading-tight">
@@ -70,17 +70,33 @@
           </div>
         </div>
 
-        <!-- Текстовое поле подробного описания -->
+        <!-- Предупреждение, если на пост уже была отправлена жалоба -->
+        <div
+          v-if="isAlreadyReported"
+          class="flex items-center gap-2.5 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs leading-relaxed"
+        >
+          <span class="material-symbols-rounded text-lg shrink-0 text-amber-600 dark:text-amber-400">info</span>
+          <span>Вы уже отправили жалобу на эту запись. Модераторы tobo уже рассматривают её.</span>
+        </div>
+
+        <!-- Текстовое поле подробного описания с лимитом символов -->
         <div class="flex flex-col gap-1.5">
-          <label for="report-description" class="text-xs font-semibold text-surface-on">
-            Подробное описание <span class="text-surface-onVariant/60 font-normal">(необязательно)</span>
-          </label>
+          <div class="flex items-center justify-between">
+            <label for="report-description" class="text-xs font-semibold text-surface-on">
+              Подробное описание <span class="text-surface-onVariant/60 font-normal">(необязательно)</span>
+            </label>
+            <span class="text-[11px] text-surface-onVariant/60 font-mono">
+              {{ descriptionText.length }}/1000
+            </span>
+          </div>
           <textarea
             id="report-description"
             v-model="descriptionText"
             rows="3"
-            placeholder="Опишите, что именно нарушает правила..."
-            class="w-full p-3 rounded-2xl bg-surface-low border border-surface-high/60 text-xs sm:text-sm text-surface-on placeholder:text-surface-onVariant/50 focus:outline-none focus:ring-2 focus:ring-rose-500/50 resize-none transition-all"
+            maxlength="1000"
+            :disabled="isAlreadyReported"
+            placeholder="Опишите, что именно нарушает правила (до 1000 символов)..."
+            class="w-full p-3 rounded-2xl bg-surface-low border border-surface-high/60 text-xs sm:text-sm text-surface-on placeholder:text-surface-onVariant/50 focus:outline-none focus:ring-2 focus:ring-rose-500/50 resize-none transition-all disabled:opacity-60"
           />
         </div>
 
@@ -152,12 +168,14 @@
             variant="filled"
             size="md"
             type="button"
-            :disabled="!selectedReason || isSubmitting"
+            :disabled="!selectedReason || isSubmitting || isAlreadyReported || cooldownSec > 0"
             :loading="isSubmitting"
             class="bg-rose-500! hover:bg-rose-600! text-white!"
             @click="handleSubmitReport"
           >
-            Отправить жалобу
+            <span v-if="isAlreadyReported">Уже отправлено</span>
+            <span v-else-if="cooldownSec > 0">Подождите {{ cooldownSec }} с</span>
+            <span v-else>Отправить жалобу</span>
           </M3Button>
         </div>
       </div>
@@ -166,7 +184,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import type { Post } from '@/types/database';
 import M3Button from '@/components/ui/M3Button.vue';
 import { useFeedStore } from '@/stores/feed';
@@ -197,6 +215,30 @@ const descriptionText = ref<string>('');
 const screenshots = ref<File[]>([]);
 const screenshotPreviews = ref<string[]>([]);
 const isSubmitting = ref(false);
+const cooldownSec = ref(0);
+let cooldownTimer: ReturnType<typeof setInterval> | null = null;
+
+const isAlreadyReported = computed(() => {
+  return Boolean(props.post && feedStore.hasReportedPost(props.post.id));
+});
+
+function syncCooldown() {
+  cooldownSec.value = feedStore.getReportCooldown();
+  if (cooldownSec.value > 0) {
+    if (!cooldownTimer) {
+      cooldownTimer = setInterval(() => {
+        cooldownSec.value = feedStore.getReportCooldown();
+        if (cooldownSec.value <= 0 && cooldownTimer) {
+          clearInterval(cooldownTimer);
+          cooldownTimer = null;
+        }
+      }, 1000);
+    }
+  } else if (cooldownTimer) {
+    clearInterval(cooldownTimer);
+    cooldownTimer = null;
+  }
+}
 
 function getReasonIcon(reason: string): string {
   switch (reason) {
@@ -250,6 +292,10 @@ function resetForm() {
   descriptionText.value = '';
   screenshots.value = [];
   isSubmitting.value = false;
+  if (cooldownTimer) {
+    clearInterval(cooldownTimer);
+    cooldownTimer = null;
+  }
 }
 
 function closeModal() {
@@ -260,7 +306,9 @@ function closeModal() {
 watch(
   () => props.modelValue,
   (val) => {
-    if (!val) {
+    if (val) {
+      syncCooldown();
+    } else {
       resetForm();
     }
   }
@@ -268,24 +316,36 @@ watch(
 
 onUnmounted(() => {
   cleanupPreviews();
+  if (cooldownTimer) {
+    clearInterval(cooldownTimer);
+    cooldownTimer = null;
+  }
 });
 
 async function handleSubmitReport() {
-  if (!props.post || !selectedReason.value || isSubmitting.value) return;
+  if (!props.post || !selectedReason.value || isSubmitting.value || isAlreadyReported.value) return;
+
+  const remainingCooldown = feedStore.getReportCooldown();
+  if (remainingCooldown > 0) {
+    toastStore.show(`Подождите ${remainingCooldown} сек. перед повторной отправкой`, 'warning');
+    syncCooldown();
+    return;
+  }
 
   isSubmitting.value = true;
   try {
+    const cleanDescription = descriptionText.value.trim().slice(0, 1000);
     await feedStore.submitReport(
       props.post.id,
       selectedReason.value,
-      descriptionText.value.trim(),
+      cleanDescription,
       screenshots.value
     );
     toastStore.show('Жалоба принята. Модераторы проверят публикацию', 'success');
     closeModal();
-  } catch (err) {
+  } catch (err: any) {
     console.error('Ошибка отправки жалобы:', err);
-    toastStore.show('Не удалось отправить жалобу. Попробуйте позже', 'error');
+    toastStore.show(err.message || 'Не удалось отправить жалобу. Попробуйте позже', 'error');
   } finally {
     isSubmitting.value = false;
   }

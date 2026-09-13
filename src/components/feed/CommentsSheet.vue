@@ -7,7 +7,7 @@
     <!-- Только скроллируемый список -->
     <div class="flex flex-col gap-3 min-h-[160px] pb-2">
       <div v-if="comments.length === 0" class="flex-1 flex flex-col items-center justify-center py-10 text-surface-onVariant/60 text-sm">
-        <span class="material-symbols-rounded text-4xl mb-2 text-primary opacity-50">forum</span>
+        <span class="material-symbols-rounded text-3xl mb-2 text-primary opacity-40">forum</span>
         <span>Здесь пока нет комментариев. Напишите первым!</span>
       </div>
       <div
@@ -33,6 +33,7 @@
           name="comment"
           v-model="commentText"
           type="text"
+          maxlength="1000"
           placeholder="Написать ответ..."
           aria-label="Написать комментарий"
           class="flex-1 px-4 py-2 rounded-full bg-surface border border-outline-variant/60 text-sm text-surface-on focus:outline-none focus:ring-2 focus:ring-primary transition-all"
@@ -90,7 +91,7 @@ async function submitComment() {
   if (!props.post || !commentText.value.trim()) return;
 
   const postId = props.post.id;
-  const text = commentText.value.trim();
+  const text = commentText.value.trim().slice(0, 1000);
   commentText.value = '';
 
   await feedStore.addComment(postId, text);

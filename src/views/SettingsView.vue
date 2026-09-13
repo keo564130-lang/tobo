@@ -7,7 +7,7 @@
           class="w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect cursor-pointer"
           @click="$router.push('/profile')"
         >
-          <span class="material-symbols-rounded text-2xl">arrow_back</span>
+          <span class="material-symbols-rounded text-[20px]">arrow_back</span>
         </button>
       </template>
 
@@ -23,7 +23,7 @@
       <!-- РАЗДЕЛ 1: ДИЗАЙН И ТЕМИЗАЦИЯ -->
       <section class="flex flex-col gap-2.5">
         <div class="flex items-center gap-2 px-1 text-primary">
-          <span class="material-symbols-rounded text-xl">palette</span>
+          <span class="material-symbols-rounded text-[20px]">palette</span>
           <h3 class="text-xs font-bold uppercase tracking-wider">
             Дизайн и Темизация (Material 3 Expressive)
           </h3>
@@ -108,7 +108,7 @@
       <!-- РАЗДЕЛ 2: БЕЗОПАСНОСТЬ (2FA + СМЕНА ПАРОЛЯ + СЕССИИ) -->
       <section class="flex flex-col gap-2.5">
         <div class="flex items-center gap-2 px-1 text-primary">
-          <span class="material-symbols-rounded text-xl">security</span>
+          <span class="material-symbols-rounded text-[20px]">security</span>
           <h3 class="text-xs font-bold uppercase tracking-wider">
             Безопасность (Security)
           </h3>
@@ -210,7 +210,7 @@
       <!-- РАЗДЕЛ 3: КОНФИДЕНЦИАЛЬНОСТЬ (ОНЛАЙН + СООБЩЕНИЯ + ГРУППЫ + ЧЕРНЫЙ СПИСОК) -->
       <section class="flex flex-col gap-2.5">
         <div class="flex items-center gap-2 px-1 text-primary">
-          <span class="material-symbols-rounded text-xl">lock</span>
+          <span class="material-symbols-rounded text-[20px]">lock</span>
           <h3 class="text-xs font-bold uppercase tracking-wider">
             Конфиденциальность (Privacy)
           </h3>
@@ -311,7 +311,7 @@
       <!-- РАЗДЕЛ 4: УВЕДОМЛЕНИЯ И ЗВУКИ (ОБЯЗАТЕЛЬНЫЙ РАЗДЕЛ ПО ТЗ) -->
       <section class="flex flex-col gap-2.5">
         <div class="flex items-center gap-2 px-1 text-primary">
-          <span class="material-symbols-rounded text-xl">notifications</span>
+          <span class="material-symbols-rounded text-[20px]">notifications</span>
           <h3 class="text-xs font-bold uppercase tracking-wider">
             Уведомления и Звуки (Notifications & Sounds)
           </h3>
@@ -427,7 +427,7 @@
       <!-- РАЗДЕЛ 5: ДАННЫЕ И ПАМЯТЬ (КЭШ + АВТОЗАГРУЗКА МЕДИА) -->
       <section class="flex flex-col gap-2.5">
         <div class="flex items-center gap-2 px-1 text-primary">
-          <span class="material-symbols-rounded text-xl">storage</span>
+          <span class="material-symbols-rounded text-[20px]">storage</span>
           <h3 class="text-xs font-bold uppercase tracking-wider">
             Память и Хранилище (Data & Cache)
           </h3>
@@ -473,7 +473,7 @@
       <!-- РАЗДЕЛ 6: УЧЕТНАЯ ЗАПИСЬ (GDPR & УДАЛЕНИЕ) -->
       <section class="flex flex-col gap-2.5">
         <div class="flex items-center gap-2 px-1 text-primary">
-          <span class="material-symbols-rounded text-xl">account_circle</span>
+          <span class="material-symbols-rounded text-[20px]">account_circle</span>
           <h3 class="text-xs font-bold uppercase tracking-wider">
             Учетная запись (Account & GDPR)
           </h3>

@@ -5,7 +5,7 @@
         <!-- Шапка модалки -->
         <div class="w-full flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
-            <span class="material-symbols-rounded text-primary text-xl">crop_landscape</span>
+            <span class="material-symbols-rounded text-primary text-[20px] leading-none flex items-center justify-center">crop_landscape</span>
             <h3 class="text-base font-bold text-surface-on">Кадрирование обложки</h3>
           </div>
           <button
@@ -14,7 +14,7 @@
             class="w-8 h-8 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high cursor-pointer transition-colors"
             @click="$emit('update:modelValue', false)"
           >
-            <span class="material-symbols-rounded text-xl">close</span>
+            <span class="material-symbols-rounded text-[20px] leading-none flex items-center justify-center">close</span>
           </button>
         </div>
 
@@ -100,7 +100,7 @@
         <!-- Переключатель силуэта аватара и подсказка -->
         <div class="w-full max-w-[360px] flex items-center justify-between mt-2.5 px-1 text-xs text-surface-onVariant">
           <span class="flex items-center gap-1 opacity-80">
-            <span class="material-symbols-rounded text-sm text-primary">info</span>
+            <span class="material-symbols-rounded text-[16px] text-primary leading-none flex items-center justify-center">info</span>
             <span>Круг — зона аватара</span>
           </span>
           <button
@@ -109,7 +109,7 @@
             :class="showAvatarGuide ? 'text-primary font-semibold' : 'text-surface-onVariant/70'"
             @click="showAvatarGuide = !showAvatarGuide"
           >
-            <span class="material-symbols-rounded text-sm">
+            <span class="material-symbols-rounded text-[16px] leading-none flex items-center justify-center">
               {{ showAvatarGuide ? 'visibility' : 'visibility_off' }}
             </span>
             <span>{{ showAvatarGuide ? 'Силуэт вкл' : 'Силуэт выкл' }}</span>
@@ -117,14 +117,14 @@
         </div>
 
         <!-- Ползунок масштабирования зума от 0.5x до 4.0x -->
-        <div class="w-full max-w-[360px] flex items-center gap-3 mt-3 text-surface-onVariant">
+        <div class="w-full max-w-[360px] flex items-center gap-2 mt-3 text-surface-onVariant">
           <button
             type="button"
-            class="w-6 h-6 flex items-center justify-center hover:text-surface-on cursor-pointer"
+            class="w-8 h-8 rounded-full hover:bg-surface-high flex items-center justify-center text-surface-onVariant hover:text-surface-on cursor-pointer transition-colors shrink-0"
             title="Отдалить"
             @click="setZoom(zoom - 0.1)"
           >
-            <span class="material-symbols-rounded text-lg">zoom_out</span>
+            <span class="material-symbols-rounded text-[20px] leading-none flex items-center justify-center">zoom_out</span>
           </button>
           <input
             :value="zoom"
@@ -138,11 +138,11 @@
           />
           <button
             type="button"
-            class="w-6 h-6 flex items-center justify-center hover:text-surface-on cursor-pointer"
+            class="w-8 h-8 rounded-full hover:bg-surface-high flex items-center justify-center text-surface-onVariant hover:text-surface-on cursor-pointer transition-colors shrink-0"
             title="Приблизить"
             @click="setZoom(zoom + 0.1)"
           >
-            <span class="material-symbols-rounded text-lg">zoom_in</span>
+            <span class="material-symbols-rounded text-[20px] leading-none flex items-center justify-center">zoom_in</span>
           </button>
         </div>
 
@@ -162,8 +162,8 @@
             :disabled="isProcessing"
             @click="cropAndSave"
           >
-            <span v-if="isProcessing" class="material-symbols-rounded text-base animate-spin">sync</span>
-            <span v-else class="material-symbols-rounded text-base">check</span>
+            <span v-if="isProcessing" class="material-symbols-rounded text-[18px] leading-none flex items-center justify-center animate-spin">sync</span>
+            <span v-else class="material-symbols-rounded text-[18px] leading-none flex items-center justify-center">check</span>
             <span>{{ isProcessing ? 'Обработка...' : 'Применить обложку' }}</span>
           </button>
         </div>

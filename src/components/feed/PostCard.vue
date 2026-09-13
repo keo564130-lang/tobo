@@ -2,20 +2,31 @@
   <article class="p-5 rounded-3xl bg-surface-lowest border border-surface-high/60 shadow-xs hover:shadow-elevation-1 transition-all duration-300">
     <!-- Шапка поста: Автор, юзернейм, время -->
     <div class="flex items-center justify-between mb-3.5">
-      <div class="flex items-center gap-3 cursor-pointer">
+      <div
+        class="flex items-center gap-3 cursor-pointer group"
+        @click="goToAuthor"
+      >
         <M3Avatar
-          :src="post.author?.avatar_url"
-          :name="post.author?.first_name || 'Пользователь'"
+          :src="isChannelPost ? channelAvatar : post.author?.avatar_url"
+          :name="isChannelPost ? channelTitle : (post.author?.first_name || 'Пользователь')"
           size="md"
         />
         <div class="flex flex-col leading-tight">
           <div class="flex items-center gap-1.5">
-            <span class="font-bold text-surface-on text-sm">
-              {{ post.author?.first_name }} {{ post.author?.last_name || '' }}
+            <span class="font-bold text-surface-on text-sm group-hover:underline">
+              {{ isChannelPost ? channelTitle : `${post.author?.first_name || ''} ${post.author?.last_name || ''}`.trim() || 'Пользователь' }}
+            </span>
+            <!-- Бейдж канала -->
+            <span
+              v-if="isChannelPost"
+              class="material-symbols-rounded text-primary text-base select-none shrink-0"
+              title="Канал"
+            >
+              campaign
             </span>
             <!-- Бейдж верификации команды tobo -->
             <span
-              v-if="post.author?.username === 'tobo_team'"
+              v-else-if="post.author?.username === 'tobo_team'"
               class="material-symbols-rounded text-primary text-base select-none shrink-0"
               title="Официальный аккаунт"
             >
@@ -23,7 +34,8 @@
             </span>
           </div>
           <div class="flex items-center gap-1.5 text-xs text-surface-onVariant/60">
-            <span>@{{ post.author?.username || 'user' }}</span>
+            <span v-if="isChannelPost">@{{ channelUsername }}</span>
+            <span v-else>@{{ post.author?.username || 'user' }}</span>
             <span>•</span>
             <span>{{ formattedDate }}</span>
           </div>
@@ -38,7 +50,7 @@
           class="w-8 h-8 rounded-full flex items-center justify-center text-surface-onVariant/70 hover:text-surface-on hover:bg-surface-high/60 transition-colors cursor-pointer"
           @click.stop="showMenu = !showMenu"
         >
-          <span class="material-symbols-rounded text-xl">more_vert</span>
+          <span class="material-symbols-rounded text-[20px]">more_vert</span>
         </button>
 
         <!-- Оверлей для закрытия меню при клике вне -->
@@ -149,7 +161,7 @@
           @click="handleLike"
         >
           <span
-            class="material-symbols-rounded text-lg transition-transform spring-transition"
+            class="material-symbols-rounded text-[19px] transition-transform spring-transition"
             :class="post.is_liked ? 'filled scale-120 text-rose-500' : ''"
           >
             favorite
@@ -163,7 +175,7 @@
           class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full transition-all m3-press-effect hover:bg-primary-container/40 hover:text-primary-onContainer cursor-pointer"
           @click="$emit('open-comments', post)"
         >
-          <span class="material-symbols-rounded text-lg">chat</span>
+          <span class="material-symbols-rounded text-[19px]">chat</span>
           <span class="font-mono text-xs">{{ post.comments_count }}</span>
         </button>
         <span v-else class="text-[11px] text-surface-onVariant/50 italic px-2">
@@ -176,7 +188,7 @@
           :class="post.is_reposted ? 'text-emerald-600 font-bold dark:text-emerald-400' : ''"
           @click="handleRepost"
         >
-          <span class="material-symbols-rounded text-lg">sync</span>
+          <span class="material-symbols-rounded text-[19px]">sync</span>
           <span class="font-mono text-xs">{{ post.reposts_count }}</span>
         </button>
       </div>
@@ -191,7 +203,7 @@
           @click="handleBookmark"
         >
           <span
-            class="material-symbols-rounded text-lg transition-transform spring-transition"
+            class="material-symbols-rounded text-[19px] transition-transform spring-transition"
             :class="post.is_bookmarked ? 'filled scale-110 text-amber-500 dark:text-amber-300' : ''"
           >
             bookmark
@@ -227,7 +239,7 @@
         <div class="w-full max-w-sm rounded-3xl bg-surface-lowest border border-surface-high/60 p-5 shadow-elevation-3 flex flex-col gap-4">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
-              <span class="material-symbols-rounded text-2xl">delete_forever</span>
+              <span class="material-symbols-rounded text-xl">delete_forever</span>
             </div>
             <div>
               <h3 class="text-sm font-bold text-surface-on">Удалить запись?</h3>
@@ -258,6 +270,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import type { Post } from '@/types/database';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
 import ImageLightboxModal from '@/components/ui/ImageLightboxModal.vue';
@@ -274,6 +287,7 @@ defineEmits<{
   (e: 'open-comments', post: Post): void;
 }>();
 
+const router = useRouter();
 const authStore = useAuthStore();
 const feedStore = useFeedStore();
 const toastStore = useToastStore();
@@ -282,12 +296,34 @@ const showMenu = ref(false);
 const showReportModal = ref(false);
 const showDeleteConfirm = ref(false);
 
+const isChannelPost = computed(() => props.post.author_type === 'channel' || Boolean(props.post.channel));
+const channelTitle = computed(() => props.post.channel?.title || 'Канал');
+const channelAvatar = computed(() => props.post.channel?.avatar_url);
+const channelUsername = computed(() => (props.post.channel?.title || 'channel').toLowerCase().replace(/\s+/g, '_'));
+
+function goToAuthor() {
+  if (isChannelPost.value && props.post.channel_id) {
+    router.push(`/messages?chat=${props.post.channel_id}`);
+  } else if (props.post.author_id === authStore.user?.id) {
+    router.push('/profile');
+  }
+}
+
 const isAuthor = computed(() => {
+  if (isChannelPost.value && props.post.channel) {
+    return props.post.channel.created_by === authStore.user?.id;
+  }
   return Boolean(authStore.user?.id && props.post.author_id === authStore.user.id);
 });
 
 const canDelete = computed(() => {
-  return Boolean(authStore.user?.id && (props.post.author_id === authStore.user.id || authStore.isDeveloper));
+  return Boolean(
+    authStore.user?.id && (
+      props.post.author_id === authStore.user.id ||
+      (isChannelPost.value && props.post.channel?.created_by === authStore.user.id) ||
+      authStore.isDeveloper
+    )
+  );
 });
 
 const formattedRankScore = computed(() => {

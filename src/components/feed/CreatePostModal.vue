@@ -5,36 +5,77 @@
     @update:model-value="$emit('update:modelValue', $event)"
   >
     <div class="flex flex-col gap-4">
-      <!-- Автор поста -->
-      <div class="flex items-center gap-3">
-        <M3Avatar
-          :src="authStore.user.avatar_url"
-          :name="authStore.user.first_name"
-          size="md"
-        />
-        <div class="flex flex-col">
-          <span class="text-sm font-bold text-surface-on">
-            {{ authStore.user.first_name }} {{ authStore.user.last_name || '' }}
-          </span>
-          <!-- Селектор аудитории -->
-          <div class="flex items-center gap-2 mt-0.5">
+      <!-- Автор поста с возможностью публикации от канала -->
+      <div class="flex flex-col gap-2 p-2.5 rounded-2xl bg-surface-low border border-surface-high/40">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3 min-w-0">
+            <M3Avatar
+              :src="currentAuthorAvatar"
+              :name="currentAuthorName"
+              size="md"
+            />
+            <div class="flex flex-col min-w-0">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="text-sm font-bold text-surface-on truncate max-w-[180px]">
+                  {{ currentAuthorName }}
+                </span>
+                <span v-if="postAuthorType === 'channel'" class="material-symbols-rounded text-primary text-sm shrink-0" title="Канал">
+                  campaign
+                </span>
+              </div>
+              <span class="text-[11px] text-surface-onVariant truncate">
+                {{ postAuthorType === 'channel' ? 'Публикация от имени канала' : 'Личный профиль' }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Селектор аудитории (только для личных постов) -->
+          <div v-if="postAuthorType === 'user'" class="flex items-center gap-1 shrink-0">
             <button
-              class="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs transition-colors cursor-pointer"
-              :class="audience === 'all' ? 'bg-primary-container text-primary-on font-semibold' : 'bg-surface-low text-surface-onVariant'"
+              type="button"
+              class="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs transition-colors cursor-pointer"
+              :class="audience === 'all' ? 'bg-primary-container text-primary-on font-semibold' : 'bg-surface-lowest text-surface-onVariant hover:text-surface-on'"
               @click="audience = 'all'"
             >
               <span class="material-symbols-rounded text-xs">public</span>
               <span>Для всех</span>
             </button>
             <button
-              class="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs transition-colors cursor-pointer"
-              :class="audience === 'friends' ? 'bg-primary-container text-primary-on font-semibold' : 'bg-surface-low text-surface-onVariant'"
+              type="button"
+              class="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs transition-colors cursor-pointer"
+              :class="audience === 'friends' ? 'bg-primary-container text-primary-on font-semibold' : 'bg-surface-lowest text-surface-onVariant hover:text-surface-on'"
               @click="audience = 'friends'"
             >
               <span class="material-symbols-rounded text-xs">group</span>
-              <span>Только друзья</span>
+              <span>Друзья</span>
             </button>
           </div>
+        </div>
+
+        <!-- Переключатель автора (Личный профиль vs Канал) если у пользователя есть доступные каналы -->
+        <div v-if="userChannels.length > 0" class="flex items-center gap-1.5 pt-1.5 border-t border-surface-high/30 overflow-x-auto">
+          <span class="text-[11px] font-semibold text-surface-onVariant shrink-0 mr-1">Автор:</span>
+          <button
+            type="button"
+            class="px-2.5 py-1 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer flex items-center gap-1.5"
+            :class="postAuthorType === 'user' ? 'bg-primary text-primary-on shadow-xs' : 'bg-surface-lowest text-surface-onVariant hover:text-surface-on'"
+            @click="postAuthorType = 'user'; selectedChannelId = ''"
+          >
+            <span class="material-symbols-rounded text-xs">person</span>
+            <span>Я ({{ authStore.user.first_name }})</span>
+          </button>
+
+          <button
+            v-for="ch in userChannels"
+            :key="ch.id"
+            type="button"
+            class="px-2.5 py-1 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer flex items-center gap-1.5"
+            :class="postAuthorType === 'channel' && selectedChannelId === ch.id ? 'bg-primary text-primary-on shadow-xs' : 'bg-surface-lowest text-surface-onVariant hover:text-surface-on'"
+            @click="selectChannelAuthor(ch)"
+          >
+            <span class="material-symbols-rounded text-xs">campaign</span>
+            <span class="truncate max-w-[140px]">{{ ch.title }}</span>
+          </button>
         </div>
       </div>
 
@@ -46,6 +87,7 @@
           aria-label="Текст публикации"
           v-model="content"
           rows="4"
+          maxlength="5000"
           placeholder="Чем хотите поделиться? Напишите мысль, идею или вопрос..."
           class="w-full p-4 rounded-2xl bg-surface-low border border-surface-high/60 text-sm text-surface-on placeholder:text-surface-onVariant/50 focus:outline-none focus:ring-2 focus:ring-primary resize-none transition-all"
         />
@@ -129,13 +171,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import type { PostAudience } from '@/types/database';
+import { ref, computed } from 'vue';
+import type { PostAudience, Chat } from '@/types/database';
 import M3BottomSheet from '@/components/ui/M3BottomSheet.vue';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
 import M3Button from '@/components/ui/M3Button.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useFeedStore } from '@/stores/feed';
+import { useChatStore } from '@/stores/chat';
 import { useToastStore } from '@/stores/toast';
 import { compressImageToWebP } from '@/lib/imageCompressor';
 
@@ -149,6 +192,7 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore();
 const feedStore = useFeedStore();
+const chatStore = useChatStore();
 const toastStore = useToastStore();
 
 const content = ref('');
@@ -157,6 +201,38 @@ const disableComments = ref(false);
 const audience = ref<PostAudience>('all');
 const isCompressing = ref(false);
 const isSubmitting = ref(false);
+
+// Выбор авторства: личный профиль или канал
+const userChannels = computed(() => {
+  return chatStore.chats.filter(
+    c => c.type === 'channel' && (c.created_by === authStore.user?.id || authStore.isDeveloper)
+  );
+});
+
+const postAuthorType = ref<'user' | 'channel'>('user');
+const selectedChannelId = ref<string>('');
+const selectedChannel = computed(() => {
+  return userChannels.value.find(c => c.id === selectedChannelId.value) || null;
+});
+
+const currentAuthorName = computed(() => {
+  if (postAuthorType.value === 'channel' && selectedChannel.value) {
+    return selectedChannel.value.title;
+  }
+  return `${authStore.user.first_name} ${authStore.user.last_name || ''}`.trim();
+});
+
+const currentAuthorAvatar = computed(() => {
+  if (postAuthorType.value === 'channel' && selectedChannel.value) {
+    return selectedChannel.value.avatar_url;
+  }
+  return authStore.user.avatar_url;
+});
+
+function selectChannelAuthor(ch: Chat) {
+  postAuthorType.value = 'channel';
+  selectedChannelId.value = ch.id;
+}
 
 async function handleFileUpload(e: Event) {
   const target = e.target as HTMLInputElement;
@@ -189,17 +265,23 @@ async function submitPost() {
 
   isSubmitting.value = true;
   try {
+    const cleanContent = content.value.trim().slice(0, 5000);
     await feedStore.createPost(
-      content.value.trim(),
+      cleanContent,
       [...mediaUrls.value],
       disableComments.value,
-      audience.value
+      audience.value,
+      postAuthorType.value,
+      postAuthorType.value === 'channel' ? selectedChannelId.value : null,
+      postAuthorType.value === 'channel' ? selectedChannel.value : null
     );
 
     content.value = '';
     mediaUrls.value = [];
     disableComments.value = false;
     audience.value = 'all';
+    postAuthorType.value = 'user';
+    selectedChannelId.value = '';
 
     emit('update:modelValue', false);
     toastStore.show('Запись успешно опубликована в ленте!', 'success');

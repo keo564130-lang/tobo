@@ -11,7 +11,7 @@
             class="w-8 h-8 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high cursor-pointer transition-colors"
             @click="$emit('update:modelValue', false)"
           >
-            <span class="material-symbols-rounded text-xl">close</span>
+            <span class="material-symbols-rounded text-[20px] leading-none flex items-center justify-center">close</span>
           </button>
         </div>
 
@@ -63,14 +63,14 @@
         </div>
 
         <!-- Ползунок приближения (Zoom Slider) -->
-        <div class="w-72 flex items-center gap-3 mt-4 text-surface-onVariant">
+        <div class="w-72 flex items-center gap-2 mt-4 text-surface-onVariant">
           <button
             type="button"
-            class="w-6 h-6 flex items-center justify-center hover:text-surface-on cursor-pointer"
+            class="w-8 h-8 rounded-full hover:bg-surface-high flex items-center justify-center text-surface-onVariant hover:text-surface-on cursor-pointer transition-colors shrink-0"
             title="Отдалить"
             @click="zoom = Math.max(0.1, +(zoom - 0.1).toFixed(2))"
           >
-            <span class="material-symbols-rounded text-lg">zoom_out</span>
+            <span class="material-symbols-rounded text-[20px] leading-none flex items-center justify-center">zoom_out</span>
           </button>
           <input
             v-model.number="zoom"
@@ -83,11 +83,11 @@
           />
           <button
             type="button"
-            class="w-6 h-6 flex items-center justify-center hover:text-surface-on cursor-pointer"
+            class="w-8 h-8 rounded-full hover:bg-surface-high flex items-center justify-center text-surface-onVariant hover:text-surface-on cursor-pointer transition-colors shrink-0"
             title="Приблизить"
             @click="zoom = Math.min(3, +(zoom + 0.1).toFixed(2))"
           >
-            <span class="material-symbols-rounded text-lg">zoom_in</span>
+            <span class="material-symbols-rounded text-[20px] leading-none flex items-center justify-center">zoom_in</span>
           </button>
         </div>
 

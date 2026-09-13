@@ -46,6 +46,9 @@ export interface Post {
   is_reposted?: boolean;
   is_bookmarked?: boolean;
   rank_score?: number;
+  author_type?: 'user' | 'channel';
+  channel_id?: string | null;
+  channel?: Chat | null;
 }
 
 export interface PostComment {
@@ -104,6 +107,19 @@ export interface Message {
   is_read: boolean;
   forwarded_post_id?: string | null;
   forwarded_post?: Post | null;
+  reactions?: Record<string, any>;
+  reply_to?: { id: string; sender_name?: string; text?: string; content?: string } | null;
+  comments_count?: number;
+  created_at: string;
+}
+
+export interface MessageComment {
+  id: string;
+  message_id: string;
+  chat_id: string;
+  author_id: string;
+  author?: Profile;
+  text: string;
   created_at: string;
 }
 

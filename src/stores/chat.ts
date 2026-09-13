@@ -5,7 +5,7 @@
 
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { Chat, Message, ChatType, BlockedUser, Post, Profile } from '@/types/database';
+import type { Chat, Message, ChatType, BlockedUser, Post, Profile, MessageComment } from '@/types/database';
 import { localStore, supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuthStore } from './auth';
 
@@ -19,16 +19,49 @@ function loadCachedChats(): Chat[] {
   } catch (e) {
     console.warn('Failed to load tobo_chats_cache:', e);
   }
-  return isSupabaseConfigured() ? [] : localStore.getChats();
+  return localStore.getChats();
+}
+
+export function canAccessChat(chat: Chat, currentUserId?: string, isDeveloper?: boolean): boolean {
+  if (!chat) return false;
+  // Личные диалоги, семейные группы и сохраненные заметки имеют свои стандартные правила
+  if (chat.type !== 'channel') {
+    if (isDeveloper) return true;
+    if (chat.type === 'saved') return chat.created_by === currentUserId;
+    if (chat.created_by === currentUserId) return true;
+    if (chat.members && currentUserId) {
+      return chat.members.some(m => m.user_id === currentUserId);
+    }
+    return true;
+  }
+
+  // КАНАЛ: проверяем настройку приватности is_public
+  const isPublic = chat.settings?.is_public ?? true;
+  if (isPublic) return true;
+
+  // Если канал ЗАКРЫТЫЙ (is_public === false):
+  // Доступ имеют только создатель канала, участники/подписчики или разработчики tobo
+  if (!currentUserId) return false;
+  if (isDeveloper) return true;
+  if (chat.created_by === currentUserId) return true;
+  if (chat.members && chat.members.some(m => m.user_id === currentUserId)) return true;
+
+  return false;
 }
 
 export const useChatStore = defineStore('chat', () => {
   const authStore = useAuthStore();
-  const chats = ref<Chat[]>(loadCachedChats());
+
+  function checkChatAccess(chat: Chat): boolean {
+    return canAccessChat(chat, authStore.user?.id, authStore.isDeveloper);
+  }
+
+  const chats = ref<Chat[]>(loadCachedChats().filter(c => canAccessChat(c, authStore.user?.id, authStore.isDeveloper)));
   const activeChatId = ref<string | null>(null);
   const activeMessages = ref<Message[]>([]);
   const isPeerTyping = ref(false);
   const blockedUsers = ref<BlockedUser[]>(localStore.getBlockedUsers());
+  const channelCommentsMap = ref<Record<string, MessageComment[]>>({});
 
   async function refreshChats() {
     if (isSupabaseConfigured() && supabase) {
@@ -61,7 +94,7 @@ export const useChatStore = defineStore('chat', () => {
             }
           }
 
-          chats.value = data.map((c: any) => ({
+          const remoteChats: Chat[] = data.map((c: any) => ({
             id: c.id,
             type: c.type as ChatType,
             title: c.title,
@@ -75,16 +108,28 @@ export const useChatStore = defineStore('chat', () => {
             members: c.chat_members,
             last_message: lastMsgMap.get(c.id) || undefined,
             unread_count: 0
-          }));
+          })).filter(checkChatAccess);
+
+          const remoteIds = new Set(remoteChats.map(c => c.id));
+          // Сохраняем все локальные/кэшированные чаты, которых пока нет в удаленной выборке
+          const localOnly = chats.value.filter(c => !remoteIds.has(c.id));
+          const localStoreChats = localStore.getChats().filter(checkChatAccess);
+          for (const lc of localStoreChats) {
+            if (!remoteIds.has(lc.id) && !localOnly.some(c => c.id === lc.id)) {
+              localOnly.push(lc);
+            }
+          }
+
+          chats.value = [...remoteChats, ...localOnly];
 
           try {
             localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
           } catch {}
           return;
         } else {
-          // Если чатов нет и кэш пустой — сбрасываем
+          // Если чатов нет и кэш пустой — проверяем локальное хранилище
           if (!chats.value.length) {
-            chats.value = [];
+            chats.value = localStore.getChats().filter(checkChatAccess);
           }
           return;
         }
@@ -95,7 +140,7 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     if (!isSupabaseConfigured()) {
-      chats.value = localStore.getChats();
+      chats.value = localStore.getChats().filter(checkChatAccess);
       try {
         localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
       } catch {}
@@ -103,11 +148,36 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function selectChat(chatId: string | null) {
-    activeChatId.value = chatId;
     if (!chatId) {
+      activeChatId.value = null;
       activeMessages.value = [];
       return;
     }
+
+    // Проверка прав доступа: для закрытых каналов доступ разрешен только участникам, создателю или разработчикам
+    let currentChat = chats.value.find(c => c.id === chatId);
+    if (!currentChat) {
+      currentChat = localStore.getChatById(chatId);
+    }
+    if (!currentChat) {
+      try {
+        const raw = localStorage.getItem('tobo_chats_cache');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            currentChat = parsed.find((c: Chat) => c.id === chatId);
+          }
+        }
+      } catch {}
+    }
+    if (currentChat && !checkChatAccess(currentChat)) {
+      activeMessages.value = [];
+      activeChatId.value = null;
+      console.warn(`[Security] Access denied: channel #${chatId} is private.`);
+      return;
+    }
+
+    activeChatId.value = chatId;
 
     // 1) СРАЗУ же загружаем кэшированные сообщения для 0-секундного ожидания
     try {
@@ -131,40 +201,36 @@ export const useChatStore = defineStore('chat', () => {
           .eq('chat_id', chatId)
           .order('created_at', { ascending: true });
 
-        if (!error && data) {
+        if (!error && data && data.length > 0) {
           activeMessages.value = data;
           try {
             localStorage.setItem('tobo_chat_msgs_' + chatId, JSON.stringify(data));
           } catch {}
 
-          if (data.length > 0) {
-            const last = data[data.length - 1];
-            const ch = chats.value.find(c => c.id === chatId);
-            if (ch) {
-              ch.last_message = last;
-              try {
-                localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
-              } catch {}
-            }
+          const last = data[data.length - 1];
+          const ch = chats.value.find(c => c.id === chatId);
+          if (ch) {
+            ch.last_message = last;
+            try {
+              localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+            } catch {}
           }
           return;
         }
       } catch (err) {
         console.warn('Supabase fetch messages failed:', err);
       }
-      return;
     }
 
-    // 3) Офлайн режим
-    if (!isSupabaseConfigured()) {
-      const offlineMsgs = localStore.getMessages(chatId);
+    // 3) Офлайн / локальные сообщения
+    const offlineMsgs = localStore.getMessages(chatId);
+    if (offlineMsgs.length > 0 || activeMessages.value.length === 0) {
       activeMessages.value = offlineMsgs;
       try {
         localStorage.setItem('tobo_chat_msgs_' + chatId, JSON.stringify(offlineMsgs));
       } catch {}
-      localStore.markMessagesAsRead(chatId);
-      refreshChats();
     }
+    localStore.markMessagesAsRead(chatId);
   }
 
   const activeChat = computed(() => {
@@ -181,6 +247,7 @@ export const useChatStore = defineStore('chat', () => {
     voice_wave?: number[];
     forwarded_post_id?: string | null;
     forwarded_post?: Post | null;
+    reply_to?: { id: string; sender_name: string; text: string } | null;
   }) {
     const targetChatId = params.chat_id || activeChatId.value;
     if (!targetChatId) return;
@@ -193,58 +260,62 @@ export const useChatStore = defineStore('chat', () => {
         if (authUser?.id) {
           authUserId = authUser.id;
         }
-        if (!authUserId) return;
+        if (authUserId) {
+          const { data, error } = await supabase.from('messages').insert({
+            chat_id: targetChatId,
+            sender_id: authUserId,
+            content: params.content,
+            media_urls: params.media_urls || [],
+            voice_url: params.voice_url,
+            voice_duration: params.voice_duration,
+            voice_wave: params.voice_wave,
+            forwarded_post_id: params.forwarded_post_id || params.forwarded_post?.id || null,
+            reply_to: params.reply_to || null
+          }).select('*, sender:profiles(*)').single();
 
-        const { data, error } = await supabase.from('messages').insert({
-          chat_id: targetChatId,
-          sender_id: authUserId,
-          content: params.content,
-          media_urls: params.media_urls || [],
-          voice_url: params.voice_url,
-          voice_duration: params.voice_duration,
-          voice_wave: params.voice_wave,
-          forwarded_post_id: params.forwarded_post_id || params.forwarded_post?.id || null
-        }).select('*, sender:profiles(*)').single();
+          if (!error && data) {
+            const formattedMsg: Message = {
+              ...data,
+              forwarded_post: params.forwarded_post || null,
+              reply_to: params.reply_to || data.reply_to || null,
+              reactions: data.reactions || {},
+              comments_count: data.comments_count || 0
+            };
 
-        if (!error && data) {
-          const formattedMsg: Message = {
-            ...data,
-            forwarded_post: params.forwarded_post || null
-          };
-
-          if (targetChatId === activeChatId.value) {
-            // Предотвращение дублирования
-            if (!activeMessages.value.some(m => m.id === formattedMsg.id)) {
-              activeMessages.value.push(formattedMsg);
+            if (targetChatId === activeChatId.value) {
+              // Предотвращение дублирования
+              if (!activeMessages.value.some(m => m.id === formattedMsg.id)) {
+                activeMessages.value.push(formattedMsg);
+              }
+              try {
+                localStorage.setItem('tobo_chat_msgs_' + targetChatId, JSON.stringify(activeMessages.value));
+              } catch {}
             }
-            try {
-              localStorage.setItem('tobo_chat_msgs_' + targetChatId, JSON.stringify(activeMessages.value));
-            } catch {}
-          }
 
-          const targetChat = chats.value.find(c => c.id === targetChatId);
-          if (targetChat) {
-            targetChat.last_message = formattedMsg;
-            try {
-              localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
-            } catch {}
-          }
+            const targetChat = chats.value.find(c => c.id === targetChatId);
+            if (targetChat) {
+              targetChat.last_message = formattedMsg;
+              try {
+                localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+              } catch {}
+            }
 
-          refreshChats();
-          return formattedMsg;
+            refreshChats();
+            return formattedMsg;
+          }
         }
       } catch (err) {
-        console.warn('Supabase message insert failed:', err);
+        console.warn('Supabase message insert failed, fallback to localStore:', err);
       }
-      return;
     }
 
-    // Офлайн-режим
+    // Офлайн-режим / Локальный fallback
     const newMsg = localStore.sendMessage({
       chat_id: targetChatId,
       ...params,
       forwarded_post_id: params.forwarded_post_id || params.forwarded_post?.id || null,
-      forwarded_post: params.forwarded_post || null
+      forwarded_post: params.forwarded_post || null,
+      reply_to: params.reply_to || null
     });
 
     if (targetChatId === activeChatId.value) {
@@ -252,6 +323,14 @@ export const useChatStore = defineStore('chat', () => {
       activeMessages.value = offlineMsgs;
       try {
         localStorage.setItem('tobo_chat_msgs_' + targetChatId, JSON.stringify(offlineMsgs));
+      } catch {}
+    }
+
+    const targetChat = chats.value.find(c => c.id === targetChatId);
+    if (targetChat) {
+      targetChat.last_message = newMsg;
+      try {
+        localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
       } catch {}
     }
 
@@ -282,37 +361,70 @@ export const useChatStore = defineStore('chat', () => {
         if (authUser?.id) {
           authUserId = authUser.id;
         }
-        if (!authUserId) return null;
+        if (authUserId) {
+          const { data: chatData, error: chatError } = await supabase.from('chats').insert({
+            type,
+            title,
+            description,
+            avatar_url: avatarUrl,
+            created_by: authUserId
+          }).select().single();
 
-        const { data: chatData, error: chatError } = await supabase.from('chats').insert({
-          type,
-          title,
-          description,
-          avatar_url: avatarUrl,
-          created_by: authUserId
-        }).select().single();
+          if (!chatError && chatData) {
+            await supabase.from('chat_members').insert({
+              chat_id: chatData.id,
+              user_id: authUserId,
+              role: 'owner'
+            });
 
-        if (!chatError && chatData) {
-          await supabase.from('chat_members').insert({
-            chat_id: chatData.id,
-            user_id: authUserId,
-            role: 'owner'
-          });
+            const createdChat: Chat = {
+              id: chatData.id,
+              type,
+              title,
+              description,
+              avatar_url: avatarUrl,
+              created_by: authUserId,
+              created_at: chatData.created_at || new Date().toISOString(),
+              members_count: 1,
+              unread_count: 0
+            };
 
-          await refreshChats();
-          await selectChat(chatData.id);
-          return chatData;
+            localStore.saveChat(createdChat);
+
+            const existingIdx = chats.value.findIndex(c => c.id === createdChat.id);
+            if (existingIdx === -1) {
+              chats.value.unshift(createdChat);
+            } else {
+              chats.value[existingIdx] = createdChat;
+            }
+
+            try {
+              localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+            } catch {}
+
+            await selectChat(chatData.id);
+            await refreshChats();
+            return createdChat;
+          }
         }
       } catch (err) {
-        console.warn('Supabase createChat failed:', err);
+        console.warn('Supabase createChat failed, fallback to localStore:', err);
       }
-      return null;
     }
 
     // Офлайн-режим
     const newChat = localStore.createChat(type, title, description, avatarUrl);
-    refreshChats();
-    selectChat(newChat.id);
+    const existingIdx = chats.value.findIndex(c => c.id === newChat.id);
+    if (existingIdx === -1) {
+      chats.value.unshift(newChat);
+    } else {
+      chats.value[existingIdx] = newChat;
+    }
+    try {
+      localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+    } catch {}
+    await selectChat(newChat.id);
+    await refreshChats();
     return newChat;
   }
 
@@ -392,6 +504,9 @@ export const useChatStore = defineStore('chat', () => {
             unread_count: 0
           };
 
+          // Сохраняем в localStore для оффлайн- и онлайн-доступа
+          localStore.saveChat(createdChat);
+
           // 4) Немедленно добавляем в chats.value и кэш localStorage
           const existingIdx = chats.value.findIndex(c => c.id === createdChat.id);
           if (existingIdx === -1) {
@@ -405,7 +520,7 @@ export const useChatStore = defineStore('chat', () => {
           } catch {}
 
           await selectChat(chatData.id);
-          refreshChats();
+          await refreshChats();
           return createdChat;
         }
       } catch (err) {
@@ -418,12 +533,14 @@ export const useChatStore = defineStore('chat', () => {
     const existingIdx = chats.value.findIndex(c => c.id === newChat.id);
     if (existingIdx === -1) {
       chats.value.unshift(newChat);
+    } else {
+      chats.value[existingIdx] = newChat;
     }
     try {
       localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
     } catch {}
     await selectChat(newChat.id);
-    refreshChats();
+    await refreshChats();
     return newChat;
   }
 
@@ -475,6 +592,9 @@ export const useChatStore = defineStore('chat', () => {
               unread_count: 0
             };
 
+            // Сохраняем в localStore для оффлайн- и онлайн-доступа
+            localStore.saveChat(createdChat);
+
             const existingIdx = chats.value.findIndex(c => c.id === createdChat.id);
             if (existingIdx === -1) {
               chats.value.unshift(createdChat);
@@ -487,7 +607,7 @@ export const useChatStore = defineStore('chat', () => {
             } catch {}
 
             await selectChat(chatData.id);
-            refreshChats();
+            await refreshChats();
             return createdChat;
           }
         }
@@ -500,12 +620,14 @@ export const useChatStore = defineStore('chat', () => {
     const existingIdx = chats.value.findIndex(c => c.id === newChat.id);
     if (existingIdx === -1) {
       chats.value.unshift(newChat);
+    } else {
+      chats.value[existingIdx] = newChat;
     }
     try {
       localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
     } catch {}
     await selectChat(newChat.id);
-    refreshChats();
+    await refreshChats();
     return newChat;
   }
 
@@ -547,6 +669,8 @@ export const useChatStore = defineStore('chat', () => {
               unread_count: 0
             };
 
+            localStore.saveChat(createdChat);
+
             const existingIdx = chats.value.findIndex(c => c.id === createdChat.id);
             if (existingIdx === -1) {
               chats.value.unshift(createdChat);
@@ -559,7 +683,7 @@ export const useChatStore = defineStore('chat', () => {
             } catch {}
 
             await selectChat(chatData.id);
-            refreshChats();
+            await refreshChats();
             return createdChat;
           }
         }
@@ -572,12 +696,14 @@ export const useChatStore = defineStore('chat', () => {
     const existingIdx = chats.value.findIndex(c => c.id === newChat.id);
     if (existingIdx === -1) {
       chats.value.unshift(newChat);
+    } else {
+      chats.value[existingIdx] = newChat;
     }
     try {
       localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
     } catch {}
     await selectChat(newChat.id);
-    refreshChats();
+    await refreshChats();
     return newChat;
   }
 
@@ -585,9 +711,19 @@ export const useChatStore = defineStore('chat', () => {
     chatId: string, 
     updates: { title?: string; description?: string; avatar_url?: string; settings?: any }
   ): Promise<boolean> {
+    const target = chats.value.find(c => c.id === chatId);
+    const mergedSettings = updates.settings !== undefined 
+      ? { ...(target?.settings || {}), ...updates.settings }
+      : target?.settings;
+
+    const fullUpdates = {
+      ...updates,
+      ...(updates.settings !== undefined ? { settings: mergedSettings } : {})
+    };
+
     if (isSupabaseConfigured() && supabase) {
       try {
-        const { error } = await supabase.from('chats').update(updates).eq('id', chatId);
+        const { error } = await supabase.from('chats').update(fullUpdates).eq('id', chatId);
         if (error) {
           console.warn('Supabase updateChat error:', error);
         }
@@ -596,13 +732,12 @@ export const useChatStore = defineStore('chat', () => {
       }
     }
 
-    const target = chats.value.find(c => c.id === chatId);
     if (target) {
-      Object.assign(target, updates);
+      Object.assign(target, fullUpdates);
     }
 
     try {
-      localStore.updateChat(chatId, updates);
+      localStore.updateChat(chatId, fullUpdates);
     } catch {}
 
     try {
@@ -733,6 +868,22 @@ export const useChatStore = defineStore('chat', () => {
             refreshChats();
           }
         )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'messages' },
+          (payload: any) => {
+            const incoming = payload.new;
+            if (activeChatId.value && incoming.chat_id === activeChatId.value) {
+              const existingIdx = activeMessages.value.findIndex(m => m.id === incoming.id);
+              if (existingIdx !== -1) {
+                activeMessages.value[existingIdx] = { ...activeMessages.value[existingIdx], ...incoming };
+                try {
+                  localStorage.setItem('tobo_chat_msgs_' + activeChatId.value, JSON.stringify(activeMessages.value));
+                } catch {}
+              }
+            }
+          }
+        )
         .subscribe();
     } catch (err) {
       console.warn('Supabase realtime subscription failed:', err);
@@ -762,10 +913,152 @@ export const useChatStore = defineStore('chat', () => {
     return true;
   }
 
+  async function toggleReaction(
+    chatId: string, 
+    messageId: string, 
+    emoji: string
+  ): Promise<Record<string, { count: number; users: string[] }>> {
+    const userId = authStore.user?.id || 'user-me-001';
+    if (!isSupabaseConfigured() || !supabase) {
+      const reactions = localStore.toggleMessageReaction(chatId, messageId, emoji, userId);
+      const msg = activeMessages.value.find(m => m.id === messageId);
+      if (msg) {
+        msg.reactions = reactions;
+        try {
+          localStorage.setItem('tobo_chat_msgs_' + chatId, JSON.stringify(activeMessages.value));
+        } catch {}
+      }
+      return reactions;
+    }
+
+    const msg = activeMessages.value.find(m => m.id === messageId);
+    if (!msg) return {};
+    if (!msg.reactions) msg.reactions = {};
+    const cur = msg.reactions[emoji] 
+      ? { count: msg.reactions[emoji].count, users: [...msg.reactions[emoji].users] } 
+      : { count: 0, users: [] };
+    const idx = cur.users.indexOf(userId);
+    if (idx > -1) {
+      cur.users.splice(idx, 1);
+      cur.count = Math.max(0, cur.count - 1);
+      if (cur.count === 0) {
+        delete msg.reactions[emoji];
+      } else {
+        msg.reactions[emoji] = cur;
+      }
+    } else {
+      cur.users.push(userId);
+      cur.count += 1;
+      msg.reactions[emoji] = cur;
+    }
+    try {
+      localStorage.setItem('tobo_chat_msgs_' + chatId, JSON.stringify(activeMessages.value));
+      await supabase.from('messages').update({ reactions: msg.reactions }).eq('id', messageId);
+    } catch (e) {
+      console.warn('toggleReaction error:', e);
+    }
+    return { ...msg.reactions };
+  }
+
+  async function loadChannelComments(messageId: string): Promise<MessageComment[]> {
+    if (!isSupabaseConfigured() || !supabase) {
+      const comments = localStore.getMessageComments(messageId);
+      channelCommentsMap.value[messageId] = comments;
+      return comments;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('message_comments')
+        .select('*, author:profiles(*)')
+        .eq('message_id', messageId)
+        .order('created_at', { ascending: true });
+      if (!error && data) {
+        channelCommentsMap.value[messageId] = data;
+        return data;
+      }
+    } catch (e) {
+      console.warn('loadChannelComments error:', e);
+    }
+    const cached = localStore.getMessageComments(messageId);
+    channelCommentsMap.value[messageId] = cached;
+    return cached;
+  }
+
+  const getChannelMessageComments = loadChannelComments;
+
+  async function addChannelMessageComment(
+    chatId: string, 
+    messageId: string, 
+    text: string
+  ): Promise<MessageComment | null> {
+    if (!text.trim()) return null;
+    const authorId = authStore.user?.id || 'user-me-001';
+
+    if (!isSupabaseConfigured() || !supabase) {
+      const comment = localStore.addMessageComment(messageId, chatId, authorId, text.trim());
+      if (!channelCommentsMap.value[messageId]) {
+        channelCommentsMap.value[messageId] = [];
+      }
+      channelCommentsMap.value[messageId].push(comment);
+      const msg = activeMessages.value.find(m => m.id === messageId);
+      if (msg) {
+        msg.comments_count = (msg.comments_count || 0) + 1;
+      }
+      return comment;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('message_comments')
+        .insert({
+          message_id: messageId,
+          chat_id: chatId,
+          author_id: authorId,
+          text: text.trim()
+        })
+        .select('*, author:profiles(*)')
+        .single();
+
+      if (!error && data) {
+        if (!channelCommentsMap.value[messageId]) {
+          channelCommentsMap.value[messageId] = [];
+        }
+        channelCommentsMap.value[messageId].push(data);
+        const msg = activeMessages.value.find(m => m.id === messageId);
+        if (msg) {
+          msg.comments_count = (msg.comments_count || 0) + 1;
+          await supabase.from('messages').update({ comments_count: msg.comments_count }).eq('id', messageId);
+        }
+        return data;
+      }
+    } catch (err) {
+      console.warn('addChannelMessageComment error:', err);
+    }
+
+    // Fallback if supabase insert failed
+    const fallbackComment = localStore.addMessageComment(messageId, chatId, authorId, text.trim());
+    if (!channelCommentsMap.value[messageId]) {
+      channelCommentsMap.value[messageId] = [];
+    }
+    channelCommentsMap.value[messageId].push(fallbackComment);
+    const msg = activeMessages.value.find(m => m.id === messageId);
+    if (msg) {
+      msg.comments_count = (msg.comments_count || 0) + 1;
+    }
+    return fallbackComment;
+  }
+
   // Локальная подписка только в офлайн режиме
   localStore.subscribe((event) => {
     if (!isSupabaseConfigured()) {
-      if (event.type === 'new_message' || event.type === 'new_chat' || event.type === 'messages_read' || event.type === 'message_deleted') {
+      if (
+        event.type === 'new_message' || 
+        event.type === 'new_chat' || 
+        event.type === 'messages_read' || 
+        event.type === 'message_deleted' || 
+        event.type === 'message_reaction_updated' ||
+        event.type === 'new_message_comment'
+      ) {
         refreshChats();
         if (activeChatId.value) {
           activeMessages.value = localStore.getMessages(activeChatId.value);
@@ -781,10 +1074,15 @@ export const useChatStore = defineStore('chat', () => {
     activeMessages,
     isPeerTyping,
     blockedUsers,
+    channelCommentsMap,
     refreshChats,
     selectChat,
     sendMessage,
     deleteMessage,
+    toggleReaction,
+    loadChannelComments,
+    getChannelMessageComments,
+    addChannelMessageComment,
     createChat,
     createDirectChat,
     createGroupChat,
@@ -794,6 +1092,7 @@ export const useChatStore = defineStore('chat', () => {
     blockUser,
     unblockUser,
     isUserBlocked,
-    reportUser
+    reportUser,
+    canAccessChat: checkChatAccess
   };
 });

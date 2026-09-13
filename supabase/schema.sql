@@ -45,6 +45,8 @@ CREATE POLICY "Пользователи могут изменять только
 CREATE TABLE IF NOT EXISTS public.posts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     author_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    author_type TEXT DEFAULT 'user' CHECK (author_type IN ('user', 'channel')),
+    channel_id UUID REFERENCES public.chats(id) ON DELETE CASCADE DEFAULT NULL,
     content TEXT NOT NULL,
     media_urls JSONB DEFAULT '[]'::jsonb NOT NULL,
     disable_comments BOOLEAN DEFAULT false NOT NULL,
@@ -58,24 +60,57 @@ CREATE TABLE IF NOT EXISTS public.posts (
 
 CREATE INDEX IF NOT EXISTS idx_posts_author ON public.posts(author_id);
 CREATE INDEX IF NOT EXISTS idx_posts_created_at ON public.posts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_channel_id ON public.posts(channel_id);
+CREATE INDEX IF NOT EXISTS idx_posts_author_type ON public.posts(author_type);
 
 ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Просмотр постов открыт всем авторизованным" 
+CREATE POLICY "Просмотр постов открыт всем для обычных постов и публичных каналов, для закрытых каналов - участникам и разработчикам" 
     ON public.posts FOR SELECT 
-    USING (true);
+    USING (
+        channel_id IS NULL OR
+        EXISTS (
+            SELECT 1 FROM public.chats c 
+            WHERE c.id = posts.channel_id AND (
+                c.type != 'channel' OR
+                COALESCE((c.settings->>'is_public')::boolean, true) = true OR
+                c.created_by = auth.uid() OR
+                public.is_chat_member(c.id, auth.uid()) OR
+                public.is_developer(auth.uid())
+            )
+        )
+    );
 
-CREATE POLICY "Создавать посты могут только их авторы" 
+CREATE POLICY "Создавать посты могут авторы или администраторы каналов" 
     ON public.posts FOR INSERT 
-    WITH CHECK (auth.uid() = author_id);
+    WITH CHECK (
+        auth.uid() = author_id AND (
+            author_type = 'user' OR
+            channel_id IS NULL OR
+            public.is_chat_creator(channel_id, auth.uid()) OR
+            public.is_chat_admin(channel_id, auth.uid())
+        )
+    );
 
-CREATE POLICY "Редактировать посты могут только их авторы" 
+CREATE POLICY "Редактировать посты могут авторы или администраторы каналов" 
     ON public.posts FOR UPDATE 
-    USING (auth.uid() = author_id);
+    USING (
+        auth.uid() = author_id OR
+        (channel_id IS NOT NULL AND (
+            public.is_chat_creator(channel_id, auth.uid()) OR
+            public.is_chat_admin(channel_id, auth.uid())
+        ))
+    );
 
-CREATE POLICY "Удалять посты могут только их авторы" 
+CREATE POLICY "Удалять посты могут авторы или администраторы каналов" 
     ON public.posts FOR DELETE 
-    USING (auth.uid() = author_id);
+    USING (
+        auth.uid() = author_id OR
+        (channel_id IS NOT NULL AND (
+            public.is_chat_creator(channel_id, auth.uid()) OR
+            public.is_chat_admin(channel_id, auth.uid())
+        ))
+    );
 
 -- ------------------------------------------------------------------------------
 -- 3. ЛАЙКИ И РЕПОСТЫ ПОСТОВ (post_likes, post_reposts)
@@ -222,12 +257,22 @@ RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER AS $$
     );
 $$;
 
+CREATE OR REPLACE FUNCTION public.is_developer(_user_id UUID)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER AS $$
+    SELECT COALESCE((
+        SELECT is_developer 
+        FROM public.profiles 
+        WHERE id = _user_id
+    ), false);
+$$;
+
 CREATE POLICY "Пользователь видит только те чаты, в которых состоит, или публичные каналы" 
     ON public.chats FOR SELECT 
     USING (
-        type = 'channel' OR
+        (type = 'channel' AND COALESCE((settings->>'is_public')::boolean, true) = true) OR
         created_by = auth.uid() OR
-        public.is_chat_member(id, auth.uid())
+        public.is_chat_member(id, auth.uid()) OR
+        public.is_developer(auth.uid())
     );
 
 CREATE POLICY "Создавать чат может любой авторизованный пользователь" 
@@ -287,12 +332,16 @@ CREATE TABLE IF NOT EXISTS public.messages (
     voice_url TEXT,
     voice_duration INTEGER,
     voice_wave JSONB,
+    reactions JSONB DEFAULT '{}'::jsonb,
+    reply_to JSONB DEFAULT NULL,
+    comments_count INTEGER DEFAULT 0,
     is_read BOOLEAN DEFAULT false NOT NULL,
     forwarded_post_id UUID REFERENCES public.posts(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_chat ON public.messages(chat_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_messages_reactions ON public.messages USING gin (reactions);
 
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
@@ -302,8 +351,10 @@ CREATE POLICY "Пользователь видит сообщения тольк
         EXISTS (
             SELECT 1 FROM public.chats c 
             WHERE c.id = messages.chat_id AND (
-                c.type = 'channel' OR
-                public.is_chat_member(c.id, auth.uid())
+                (c.type = 'channel' AND COALESCE((c.settings->>'is_public')::boolean, true) = true) OR
+                c.created_by = auth.uid() OR
+                public.is_chat_member(c.id, auth.uid()) OR
+                public.is_developer(auth.uid())
             )
         )
     );
@@ -321,9 +372,19 @@ CREATE POLICY "Отправлять сообщения могут участни
         )
     );
 
-CREATE POLICY "Редактировать сообщение может только его отправитель" 
+CREATE POLICY "Редактировать сообщение или ставить реакции" 
     ON public.messages FOR UPDATE 
-    USING (auth.uid() = sender_id);
+    USING (
+        auth.uid() = sender_id OR
+        EXISTS (
+            SELECT 1 FROM public.chats c 
+            WHERE c.id = messages.chat_id AND (
+                c.type = 'channel' OR
+                public.is_chat_member(c.id, auth.uid()) OR
+                public.is_chat_creator(c.id, auth.uid())
+            )
+        )
+    );
 
 CREATE POLICY "Удалять сообщение может его отправитель или админ чата" 
     ON public.messages FOR DELETE 
@@ -333,7 +394,78 @@ CREATE POLICY "Удалять сообщение может его отправ�
     );
 
 -- ------------------------------------------------------------------------------
--- 7. БЛОКИРОВКИ, ЖАЛОБЫ И СЕССИИ (blocked_users, reports, active_sessions)
+-- 7. КОММЕНТАРИИ К СООБЩЕНИЯМ КАНАЛОВ (message_comments)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.message_comments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    message_id UUID NOT NULL REFERENCES public.messages(id) ON DELETE CASCADE,
+    chat_id UUID NOT NULL REFERENCES public.chats(id) ON DELETE CASCADE,
+    author_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    text TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_message_comments_msg_id ON public.message_comments(message_id);
+CREATE INDEX IF NOT EXISTS idx_message_comments_chat_id ON public.message_comments(chat_id);
+CREATE INDEX IF NOT EXISTS idx_message_comments_author ON public.message_comments(author_id);
+CREATE INDEX IF NOT EXISTS idx_message_comments_created_at ON public.message_comments(created_at ASC);
+
+ALTER TABLE public.message_comments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow read comments for accessible chats" 
+    ON public.message_comments FOR SELECT 
+    TO authenticated 
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.chats c 
+            WHERE c.id = message_comments.chat_id AND (
+                (c.type = 'channel' AND COALESCE((c.settings->>'is_public')::boolean, true) = true) OR
+                c.created_by = auth.uid() OR
+                public.is_chat_member(c.id, auth.uid()) OR
+                public.is_developer(auth.uid())
+            )
+        )
+    );
+
+CREATE POLICY "Allow insert comments" 
+    ON public.message_comments FOR INSERT 
+    TO authenticated 
+    WITH CHECK (auth.uid() = author_id);
+
+CREATE POLICY "Allow delete own comments" 
+    ON public.message_comments FOR DELETE 
+    TO authenticated 
+    USING (
+        auth.uid() = author_id OR 
+        public.is_chat_creator(chat_id, auth.uid()) OR
+        public.is_chat_admin(chat_id, auth.uid())
+    );
+
+CREATE OR REPLACE FUNCTION public.handle_message_comment_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        UPDATE public.messages
+        SET comments_count = COALESCE(comments_count, 0) + 1
+        WHERE id = NEW.message_id;
+        RETURN NEW;
+    ELSIF (TG_OP = 'DELETE') THEN
+        UPDATE public.messages
+        SET comments_count = GREATEST(COALESCE(comments_count, 1) - 1, 0)
+        WHERE id = OLD.message_id;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_message_comment_count ON public.message_comments;
+CREATE TRIGGER trg_message_comment_count
+    AFTER INSERT OR DELETE ON public.message_comments
+    FOR EACH ROW EXECUTE FUNCTION public.handle_message_comment_count();
+
+-- ------------------------------------------------------------------------------
+-- 8. БЛОКИРОВКИ, ЖАЛОБЫ И СЕССИИ (blocked_users, reports, active_sessions)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.blocked_users (
     blocker_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -397,6 +529,8 @@ CREATE POLICY "Пользователь может завершать свои �
 -- ------------------------------------------------------------------------------
 -- Формула ранжирования:
 -- Score = (Views * 0.1 + Likes * 2.0 + Comments * 3.0 + Reposts * 4.0) / ((Age_in_Hours + 2) ^ 1.5)
+DROP FUNCTION IF EXISTS public.get_ranked_feed(INT, INT);
+
 CREATE OR REPLACE FUNCTION public.get_ranked_feed(
     page_offset INT DEFAULT 0,
     page_limit INT DEFAULT 20
@@ -404,6 +538,10 @@ CREATE OR REPLACE FUNCTION public.get_ranked_feed(
 RETURNS TABLE (
     id UUID,
     author_id UUID,
+    author_type TEXT,
+    channel_id UUID,
+    channel_title TEXT,
+    channel_avatar_url TEXT,
     content TEXT,
     media_urls JSONB,
     disable_comments BOOLEAN,
@@ -424,6 +562,10 @@ LANGUAGE sql STABLE AS $$
     SELECT 
         p.id,
         p.author_id,
+        COALESCE(p.author_type, 'user') AS author_type,
+        p.channel_id,
+        ch.title AS channel_title,
+        ch.avatar_url AS channel_avatar_url,
         p.content,
         p.media_urls,
         p.disable_comments,
@@ -445,6 +587,16 @@ LANGUAGE sql STABLE AS $$
         prof.is_developer AS author_is_developer
     FROM public.posts p
     JOIN public.profiles prof ON prof.id = p.author_id
+    LEFT JOIN public.chats ch ON ch.id = p.channel_id
+    WHERE (
+        p.channel_id IS NULL OR
+        ch.id IS NULL OR
+        ch.type != 'channel' OR
+        COALESCE((ch.settings->>'is_public')::boolean, true) = true OR
+        ch.created_by = auth.uid() OR
+        public.is_chat_member(ch.id, auth.uid()) OR
+        public.is_developer(auth.uid())
+    )
     ORDER BY rank_score DESC, p.created_at DESC
     LIMIT page_limit OFFSET page_offset;
 $$;
@@ -541,6 +693,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.chats;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_members;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.posts;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.comments;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.message_comments;
 
 -- ------------------------------------------------------------------------------
 -- 11. ХРАНИЛИЩЕ SUPABASE STORAGE (avatars, covers, media)

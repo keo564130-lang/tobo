@@ -21,7 +21,7 @@
           class="w-8 h-8 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high cursor-pointer transition-colors"
           @click="closeModal"
         >
-          <span class="material-symbols-rounded text-xl">close</span>
+          <span class="material-symbols-rounded text-[20px] leading-none flex items-center justify-center">close</span>
         </button>
       </div>
 
@@ -47,7 +47,7 @@
             : 'text-surface-onVariant hover:text-surface-on hover:bg-surface-high/40'"
           @click="switchMode('signin')"
         >
-          <span class="material-symbols-rounded text-sm">login</span>
+          <span class="material-symbols-rounded text-[18px] leading-none flex items-center justify-center">login</span>
           <span>Вход</span>
         </button>
         <button
@@ -58,7 +58,7 @@
             : 'text-surface-onVariant hover:text-surface-on hover:bg-surface-high/40'"
           @click="switchMode('signup')"
         >
-          <span class="material-symbols-rounded text-sm">person_add</span>
+          <span class="material-symbols-rounded text-[18px] leading-none flex items-center justify-center">person_add</span>
           <span>Регистрация</span>
         </button>
       </div>
@@ -80,7 +80,7 @@
             Электронная почта (Email) *
           </label>
           <div class="relative">
-            <span class="absolute left-3.5 top-3 text-surface-onVariant/60 material-symbols-rounded text-lg select-none">
+            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-onVariant/60 material-symbols-rounded text-[18px] leading-none flex items-center justify-center pointer-events-none select-none">
               mail
             </span>
             <input
@@ -105,7 +105,7 @@
             Пароль *
           </label>
           <div class="relative">
-            <span class="absolute left-3.5 top-3 text-surface-onVariant/60 material-symbols-rounded text-lg select-none">
+            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-onVariant/60 material-symbols-rounded text-[18px] leading-none flex items-center justify-center pointer-events-none select-none">
               lock
             </span>
             <input
@@ -124,10 +124,10 @@
             <button
               type="button"
               aria-label="Показать или скрыть пароль"
-              class="absolute right-3 top-2.5 text-surface-onVariant/60 hover:text-surface-on transition-colors cursor-pointer"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center text-surface-onVariant/60 hover:text-surface-on hover:bg-surface-high/50 transition-colors cursor-pointer"
               @click="showPassword = !showPassword"
             >
-              <span class="material-symbols-rounded text-lg">
+              <span class="material-symbols-rounded text-[18px] leading-none flex items-center justify-center">
                 {{ showPassword ? 'visibility_off' : 'visibility' }}
               </span>
             </button>
@@ -135,12 +135,36 @@
           <span v-if="passwordError" class="text-[11px] text-rose-500 mt-1 block">{{ passwordError }}</span>
         </div>
 
+        <!-- Карточка предупреждения M3: Ранняя альфа-версия (Alpha v0.1) -->
+        <div
+          v-if="mode === 'signup'"
+          class="p-3.5 rounded-3xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 flex flex-col gap-2.5 transition-all"
+        >
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-rounded text-amber-500 text-[18px] leading-none flex items-center justify-center shrink-0">science</span>
+            <span class="text-xs font-bold leading-tight">Ранняя альфа-версия (Alpha v0.1)</span>
+          </div>
+          <p class="text-[11px] leading-relaxed text-surface-onVariant">
+            tobo находится в стадии открытого альфа-тестирования. Возможны сбои, нестабильная работа и сброс тестовых данных. Регистрируясь, вы соглашаетесь на участие в тестировании.
+          </p>
+          <label class="flex items-start gap-2 cursor-pointer select-none pt-1 border-t border-amber-500/20">
+            <input
+              type="checkbox"
+              v-model="alphaAccepted"
+              class="w-4 h-4 mt-0.5 rounded-md accent-primary cursor-pointer shrink-0"
+            />
+            <span class="text-[11px] font-medium leading-tight text-surface-on">
+              Я подтверждаю участие в альфа-тестировании
+            </span>
+          </label>
+        </div>
+
         <!-- Кнопка действия с индикатором загрузки -->
         <div class="pt-2 flex flex-col gap-2">
           <button
             type="submit"
-            :disabled="authStore.isLoading"
-            class="w-full py-3 rounded-full bg-primary text-primary-on font-bold text-sm shadow-sm hover:opacity-95 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            :disabled="(mode === 'signup' && !alphaAccepted) || authStore.isLoading"
+            class="w-full py-3 rounded-full bg-primary text-primary-on font-bold text-sm shadow-sm hover:opacity-95 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span
               v-if="authStore.isLoading"
@@ -152,7 +176,7 @@
             <span v-else>
               {{ mode === 'signin' ? 'Выполняется вход...' : 'Создание аккаунта...' }}
             </span>
-            <span v-if="!authStore.isLoading" class="material-symbols-rounded text-base">
+            <span v-if="!authStore.isLoading" class="material-symbols-rounded text-base leading-none flex items-center justify-center">
               arrow_forward
             </span>
           </button>
@@ -201,6 +225,7 @@ const showPassword = ref(false);
 const emailError = ref('');
 const passwordError = ref('');
 const generalError = ref('');
+const alphaAccepted = ref(false);
 
 watch(
   () => [props.modelValue, props.initialMode],
@@ -210,6 +235,7 @@ watch(
       emailError.value = '';
       passwordError.value = '';
       generalError.value = '';
+      alphaAccepted.value = false;
     }
   }
 );
@@ -219,6 +245,7 @@ function switchMode(newMode: 'signin' | 'signup') {
   emailError.value = '';
   passwordError.value = '';
   generalError.value = '';
+  alphaAccepted.value = false;
 }
 
 function clearEmailError() {

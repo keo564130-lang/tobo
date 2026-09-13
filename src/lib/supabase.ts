@@ -9,6 +9,7 @@ import type {
   Post, 
   Chat, 
   Message, 
+  MessageComment,
   PostComment, 
   BlockedUser, 
   Report, 
@@ -58,7 +59,8 @@ const STORAGE_KEYS = {
   CHATS: 'tobo_chats',
   MESSAGES: 'tobo_messages',
   BLOCKED: 'tobo_blocked_users',
-  SESSIONS: 'tobo_active_sessions'
+  SESSIONS: 'tobo_active_sessions',
+  MESSAGE_COMMENTS: 'tobo_message_comments'
 };
 
 class LocalDataStore {
@@ -68,6 +70,7 @@ class LocalDataStore {
   private comments: PostComment[] = [];
   private chats: Chat[] = [];
   private messages: Map<string, Message[]> = new Map();
+  private messageComments: Map<string, MessageComment[]> = new Map();
   private blockedUsers: BlockedUser[] = [];
   private activeSessions: ActiveSession[] = [];
   private realtimeListeners: Set<(event: { type: string; payload: unknown }) => void> = new Set();
@@ -144,6 +147,17 @@ class LocalDataStore {
     // 7. Инициализация черного списка
     const savedBlocked = localStorage.getItem(STORAGE_KEYS.BLOCKED);
     this.blockedUsers = savedBlocked ? JSON.parse(savedBlocked) : [];
+
+    // 8. Инициализация комментариев к сообщениям
+    const savedComments = localStorage.getItem(STORAGE_KEYS.MESSAGE_COMMENTS);
+    if (savedComments) {
+      try {
+        const parsed = JSON.parse(savedComments) as Record<string, MessageComment[]>;
+        Object.entries(parsed).forEach(([msgId, comments]) => {
+          this.messageComments.set(msgId, comments);
+        });
+      } catch {}
+    }
   }
 
   private persist(key: string, data: unknown) {
@@ -212,7 +226,8 @@ class LocalDataStore {
       .map(p => ({
         ...p,
         rank_score: this.calculatePostScore(p),
-        author: this.profiles.get(p.author_id) || p.author
+        author: this.profiles.get(p.author_id) || p.author,
+        channel: p.channel_id ? (this.chats.find(c => c.id === p.channel_id) || p.channel) : null
       }))
       .sort((a, b) => (b.rank_score || 0) - (a.rank_score || 0));
   }
@@ -220,11 +235,23 @@ class LocalDataStore {
   getUserPosts(authorId: string): Post[] {
     return this.posts
       .filter(p => p.author_id === authorId)
-      .map(p => ({ ...p, author: this.profiles.get(p.author_id) || p.author }))
+      .map(p => ({ 
+        ...p, 
+        author: this.profiles.get(p.author_id) || p.author,
+        channel: p.channel_id ? (this.chats.find(c => c.id === p.channel_id) || p.channel) : null
+      }))
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }
 
-  createPost(content: string, mediaUrls: string[], disableComments: boolean, audience: 'all' | 'friends'): Post {
+  createPost(
+    content: string, 
+    mediaUrls: string[], 
+    disableComments: boolean, 
+    audience: 'all' | 'friends',
+    authorType: 'user' | 'channel' = 'user',
+    channelId?: string | null,
+    channel?: Chat | null
+  ): Post {
     const newPost: Post = {
       id: `post-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
       author_id: this.currentUser.id,
@@ -240,7 +267,10 @@ class LocalDataStore {
       created_at: new Date().toISOString(),
       is_liked: false,
       is_reposted: false,
-      is_bookmarked: false
+      is_bookmarked: false,
+      author_type: authorType,
+      channel_id: channelId || null,
+      channel: channel || (channelId ? this.chats.find(c => c.id === channelId) : null)
     };
 
     this.posts.unshift(newPost);
@@ -361,9 +391,24 @@ class LocalDataStore {
     return this.getChats().find(c => c.id === chatId);
   }
 
-  createChat(type: ChatType, title: string, description?: string, avatarUrl?: string): Chat {
+  saveChat(chat: Chat): Chat {
+    const existingIndex = this.chats.findIndex(c => c.id === chat.id);
+    if (existingIndex >= 0) {
+      this.chats[existingIndex] = { ...this.chats[existingIndex], ...chat };
+    } else {
+      this.chats.unshift(chat);
+    }
+    if (!this.messages.has(chat.id)) {
+      this.messages.set(chat.id, []);
+    }
+    this.persist(STORAGE_KEYS.CHATS, this.chats);
+    this.notify('new_chat', chat);
+    return chat;
+  }
+
+  createChat(type: ChatType, title: string, description?: string, avatarUrl?: string, customId?: string): Chat {
     const newChat: Chat = {
-      id: `chat-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      id: customId || `chat-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
       type,
       title,
       description,
@@ -375,17 +420,19 @@ class LocalDataStore {
       subscribers_count: type === 'channel' ? 1 : undefined
     };
 
-    this.chats.unshift(newChat);
-    this.messages.set(newChat.id, []);
-    this.persist(STORAGE_KEYS.CHATS, this.chats);
-    this.notify('new_chat', newChat);
-    return newChat;
+    return this.saveChat(newChat);
   }
 
   updateChat(chatId: string, updates: Partial<Chat>): Chat | undefined {
     const chat = this.chats.find(c => c.id === chatId);
     if (chat) {
+      if (updates.settings) {
+        chat.settings = { ...(chat.settings || {}), ...updates.settings };
+      }
       Object.assign(chat, updates);
+      if (updates.settings) {
+        chat.settings = { ...(chat.settings || {}), ...updates.settings };
+      }
       this.persist(STORAGE_KEYS.CHATS, this.chats);
       this.notify('chat_updated', chat);
     }
@@ -401,6 +448,91 @@ class LocalDataStore {
     }));
   }
 
+  toggleMessageReaction(chatId: string, messageId: string, emoji: string, userId: string): Record<string, { count: number; users: string[] }> {
+    const msgs = this.messages.get(chatId) || [];
+    const msg = msgs.find(m => m.id === messageId);
+    if (!msg) return {};
+
+    if (!msg.reactions) {
+      msg.reactions = {};
+    }
+
+    const current = msg.reactions[emoji] || { count: 0, users: [] };
+    const userIndex = current.users.indexOf(userId);
+
+    if (userIndex > -1) {
+      current.users.splice(userIndex, 1);
+      current.count = Math.max(0, current.count - 1);
+      if (current.count === 0) {
+        delete msg.reactions[emoji];
+      } else {
+        msg.reactions[emoji] = current;
+      }
+    } else {
+      current.users.push(userId);
+      current.count += 1;
+      msg.reactions[emoji] = current;
+    }
+
+    const serializedMessages: Record<string, Message[]> = {};
+    this.messages.forEach((mList, id) => {
+      serializedMessages[id] = mList;
+    });
+    this.persist(STORAGE_KEYS.MESSAGES, serializedMessages);
+    this.notify('message_reaction_updated', { chatId, messageId, reactions: msg.reactions });
+    return msg.reactions;
+  }
+
+  getMessageComments(messageId: string): MessageComment[] {
+    const list = this.messageComments.get(messageId) || [];
+    return list.map(c => ({
+      ...c,
+      author: this.profiles.get(c.author_id)
+    }));
+  }
+
+  addMessageComment(messageId: string, chatId: string, authorId: string, text: string): MessageComment {
+    const author = this.profiles.get(authorId) || this.currentUser;
+    const newComment: MessageComment = {
+      id: `comment-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      message_id: messageId,
+      chat_id: chatId,
+      author_id: authorId,
+      author: { ...author },
+      text,
+      created_at: new Date().toISOString()
+    };
+
+    let list = this.messageComments.get(messageId);
+    if (!list) {
+      list = [];
+      this.messageComments.set(messageId, list);
+    }
+    list.push(newComment);
+
+    const serializedComments: Record<string, MessageComment[]> = {};
+    this.messageComments.forEach((cList, id) => {
+      serializedComments[id] = cList;
+    });
+    this.persist(STORAGE_KEYS.MESSAGE_COMMENTS, serializedComments);
+
+    const msgs = this.messages.get(chatId);
+    if (msgs) {
+      const msg = msgs.find(m => m.id === messageId);
+      if (msg) {
+        msg.comments_count = (msg.comments_count || 0) + 1;
+        const serializedMessages: Record<string, Message[]> = {};
+        this.messages.forEach((mList, id) => {
+          serializedMessages[id] = mList;
+        });
+        this.persist(STORAGE_KEYS.MESSAGES, serializedMessages);
+      }
+    }
+
+    this.notify('new_message_comment', newComment);
+    return newComment;
+  }
+
   sendMessage(params: {
     chat_id: string;
     sender_id?: string;
@@ -411,6 +543,7 @@ class LocalDataStore {
     voice_wave?: number[];
     forwarded_post_id?: string | null;
     forwarded_post?: Post | null;
+    reply_to?: { id: string; sender_name: string; text: string } | null;
   }): Message {
     const chat = this.chats.find(c => c.id === params.chat_id);
     if (!chat) throw new Error('Чат не найден');
@@ -428,6 +561,9 @@ class LocalDataStore {
       voice_wave: params.voice_wave,
       forwarded_post_id: params.forwarded_post_id,
       forwarded_post: params.forwarded_post || (params.forwarded_post_id ? this.posts.find(p => p.id === params.forwarded_post_id) : null),
+      reply_to: params.reply_to || null,
+      reactions: {},
+      comments_count: 0,
       is_read: false,
       created_at: new Date().toISOString()
     };

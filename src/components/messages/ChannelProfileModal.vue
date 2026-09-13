@@ -311,7 +311,7 @@ const avatarFileInput = ref<HTMLInputElement | null>(null);
 // M3 настройки канала
 const allowComments = ref(true);
 const allowReactions = ref(true);
-const postingRole = ref<'admins' | 'all'>('admins');
+const postingRole = ref<'owner' | 'admins' | 'all'>('admins');
 const isPublic = ref(true);
 
 const canEdit = computed(() => {
@@ -370,42 +370,44 @@ async function handleCropComplete(result: string | { base64: string; blob?: Blob
   }
 }
 
-// Сохранение настроек канала
+// Сохранение настроек канала строго через объект settings
+async function saveChannelSettings() {
+  if (!props.chat) return;
+  try {
+    await chatStore.updateChat(props.chat.id, {
+      settings: {
+        ...(props.chat.settings || {}),
+        disable_comments: !allowComments.value,
+        allow_reactions: allowReactions.value,
+        can_post_role: postingRole.value,
+        is_public: isPublic.value
+      }
+    });
+    toastStore.show('Настройки канала обновлены', 'success');
+  } catch (err) {
+    console.error('Ошибка сохранения настроек канала:', err);
+    toastStore.show('Не удалось сохранить настройки', 'error');
+  }
+}
+
 async function toggleCommentsSetting() {
   allowComments.value = !allowComments.value;
-  if (!props.chat) return;
-  await chatStore.updateChat(props.chat.id, {
-    // В базе disable_comments: false означает, что комментарии разрешены
-    disable_comments: !allowComments.value
-  } as any);
-  toastStore.show('Настройки канала обновлены', 'success');
+  await saveChannelSettings();
 }
 
 async function toggleReactionsSetting() {
   allowReactions.value = !allowReactions.value;
-  if (!props.chat) return;
-  await chatStore.updateChat(props.chat.id, {
-    allow_reactions: allowReactions.value
-  } as any);
-  toastStore.show('Настройки канала обновлены', 'success');
+  await saveChannelSettings();
 }
 
-async function updatePostingRole(role: 'admins' | 'all') {
+async function updatePostingRole(role: 'owner' | 'admins' | 'all') {
   postingRole.value = role;
-  if (!props.chat) return;
-  await chatStore.updateChat(props.chat.id, {
-    can_post_role: role
-  } as any);
-  toastStore.show('Настройки канала обновлены', 'success');
+  await saveChannelSettings();
 }
 
 async function updateChannelType(publicType: boolean) {
   isPublic.value = publicType;
-  if (!props.chat) return;
-  await chatStore.updateChat(props.chat.id, {
-    is_public: publicType
-  } as any);
-  toastStore.show('Настройки канала обновлены', 'success');
+  await saveChannelSettings();
 }
 
 // Инициализация полей
@@ -415,10 +417,10 @@ watch(
     if (newChat) {
       editTitle.value = newChat.title;
       editDescription.value = newChat.description || '';
-      allowComments.value = !(newChat as any).disable_comments;
-      allowReactions.value = (newChat as any).allow_reactions ?? true;
-      postingRole.value = (newChat as any).can_post_role || 'admins';
-      isPublic.value = (newChat as any).is_public ?? true;
+      allowComments.value = !newChat.settings?.disable_comments;
+      allowReactions.value = newChat.settings?.allow_reactions ?? true;
+      postingRole.value = newChat.settings?.can_post_role || 'admins';
+      isPublic.value = newChat.settings?.is_public ?? true;
     }
     isEditing.value = false;
   },

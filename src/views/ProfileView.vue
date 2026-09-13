@@ -31,7 +31,7 @@
           title="Выйти из аккаунта"
           @click="handleSignOut"
         >
-          <span class="material-symbols-rounded text-xl">logout</span>
+          <span class="material-symbols-rounded text-[20px]">logout</span>
         </button>
 
         <!-- Кнопка перехода в Настройки -->
@@ -40,7 +40,7 @@
           class="w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect shrink-0"
           title="Настройки приложения"
         >
-          <span class="material-symbols-rounded text-2xl">settings</span>
+          <span class="material-symbols-rounded text-[20px]">settings</span>
         </router-link>
       </template>
     </FloatingTopBar>

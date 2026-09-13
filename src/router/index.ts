@@ -1,8 +1,4 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
-import FeedView from '@/views/FeedView.vue';
-import MessagesView from '@/views/MessagesView.vue';
-import ProfileView from '@/views/ProfileView.vue';
-import SettingsView from '@/views/SettingsView.vue';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -12,22 +8,22 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/feed',
     name: 'Feed',
-    component: FeedView
+    component: () => import('@/views/FeedView.vue')
   },
   {
     path: '/messages',
     name: 'Messages',
-    component: MessagesView
+    component: () => import('@/views/MessagesView.vue')
   },
   {
     path: '/profile',
     name: 'Profile',
-    component: ProfileView
+    component: () => import('@/views/ProfileView.vue')
   },
   {
     path: '/settings',
     name: 'Settings',
-    component: SettingsView
+    component: () => import('@/views/SettingsView.vue')
   },
   {
     path: '/:pathMatch(.*)*',
