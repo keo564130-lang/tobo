@@ -18,10 +18,10 @@
           </button>
         </div>
 
-        <!-- Область кадрирования с прямоугольным видоискателем (8:3) -->
+        <!-- Область кадрирования с прямоугольным видоискателем (16:6) -->
         <div
           ref="cropContainer"
-          class="relative w-full max-w-[392px] h-[167px] rounded-3xl overflow-hidden bg-black select-none cursor-grab active:cursor-grabbing touch-none flex items-center justify-center shadow-inner"
+          class="relative w-[360px] h-[135px] max-w-full rounded-2xl overflow-hidden bg-[#1A1C1E] select-none cursor-grab active:cursor-grabbing touch-none flex items-center justify-center shadow-inner border-2 border-white/90 ring-4 ring-black/40"
           @mousedown="startDrag"
           @touchstart="startDragTouch"
           @wheel.prevent="onWheel"
@@ -43,30 +43,17 @@
             @load="onImageLoad"
           />
 
-          <!-- Прямоугольная SVG маска видоискателя (360x135, rx=16) -->
-          <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 392 167">
-            <defs>
-              <mask id="cover-viewfinder-mask">
-                <rect width="392" height="167" fill="white" />
-                <rect x="16" y="16" width="360" height="135" rx="16" ry="16" fill="black" />
-              </mask>
-            </defs>
-            <!-- Затемнение 65% снаружи рамки -->
-            <rect width="392" height="167" fill="rgba(0, 0, 0, 0.65)" mask="url(#cover-viewfinder-mask)" />
-            <!-- Ультратонкий направляющий пунктир -->
-            <rect x="16" y="16" width="360" height="135" rx="16" ry="16" fill="none" stroke="rgba(255, 255, 255, 0.3)" stroke-width="1" stroke-dasharray="4 4" />
-            <!-- Белая окантовка видоискателя 2px -->
-            <rect x="16" y="16" width="360" height="135" rx="16" ry="16" fill="none" stroke="rgba(255, 255, 255, 0.9)" stroke-width="2" />
-            <!-- Аккуратные угловые L-маркеры -->
-            <path d="M 16 36 L 16 16 L 36 16" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M 356 16 L 376 16 L 376 36" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M 16 131 L 16 151 L 36 151" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M 356 151 L 376 151 L 376 131" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          <!-- Легкие белые угловые маркеры видоискателя (L-markers) -->
+          <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 360 135">
+            <path d="M 4 20 L 4 4 L 20 4" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M 340 4 L 356 4 L 356 20" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M 4 115 L 4 131 L 20 131" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M 340 131 L 356 131 L 356 115" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
 
         <!-- Ползунок масштабирования зума от 0.2x до 4.0x -->
-        <div class="w-full max-w-[392px] flex items-center gap-3 mt-4 text-surface-onVariant">
+        <div class="w-full max-w-[360px] flex items-center gap-3 mt-4 text-surface-onVariant">
           <button
             type="button"
             class="w-6 h-6 flex items-center justify-center hover:text-surface-on cursor-pointer"
@@ -246,43 +233,25 @@ async function cropAndSave() {
   const containerRect = cropContainer.value.getBoundingClientRect();
   const imgRect = imgElement.value.getBoundingClientRect();
 
-  // Видоискатель 360x135 с отступом 16px (пропорция 16:6)
-  const viewfinderLeft = containerRect.left + 16;
-  const viewfinderTop = containerRect.top + 16;
+  const scaleX = TARGET_WIDTH / containerRect.width;
+  const scaleY = TARGET_HEIGHT / containerRect.height;
 
-  // Позиция видоискателя относительно отображаемого изображения
-  const cropXInDisplayed = viewfinderLeft - imgRect.left;
-  const cropYInDisplayed = viewfinderTop - imgRect.top;
-
-  // Масштаб отображаемого к натуральному размеру исходника
-  const natW = imgElement.value.naturalWidth || naturalWidth.value || imgRect.width;
-  const natH = imgElement.value.naturalHeight || naturalHeight.value || imgRect.height;
-  const scaleRatioX = natW / imgRect.width;
-  const scaleRatioY = natH / imgRect.height;
-
-  const sourceX = cropXInDisplayed * scaleRatioX;
-  const sourceY = cropYInDisplayed * scaleRatioY;
-  const sourceW = VIEWFINDER_WIDTH * scaleRatioX;
-  const sourceH = VIEWFINDER_HEIGHT * scaleRatioY;
+  const drawX = (imgRect.left - containerRect.left) * scaleX;
+  const drawY = (imgRect.top - containerRect.top) * scaleY;
+  const drawW = imgRect.width * scaleX;
+  const drawH = imgRect.height * scaleY;
 
   const canvas = document.createElement('canvas');
-  canvas.width = TARGET_WIDTH;
-  canvas.height = TARGET_HEIGHT;
+  canvas.width = TARGET_WIDTH; // 1200
+  canvas.height = TARGET_HEIGHT; // 450
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
+  ctx.fillStyle = '#1A1C1E';
+  ctx.fillRect(0, 0, TARGET_WIDTH, TARGET_HEIGHT);
+  ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(
-    imgElement.value,
-    sourceX,
-    sourceY,
-    sourceW,
-    sourceH,
-    0,
-    0,
-    TARGET_WIDTH,
-    TARGET_HEIGHT
-  );
+  ctx.drawImage(imgElement.value, drawX, drawY, drawW, drawH);
 
   canvas.toBlob(
     (blob) => {

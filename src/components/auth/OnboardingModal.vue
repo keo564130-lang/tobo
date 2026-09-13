@@ -157,11 +157,11 @@
           <!-- 1. ОБЛОЖКА ПРОФИЛЯ (COVER) -->
           <div>
             <label class="block text-xs font-semibold text-surface-on mb-1.5">Обложка профиля</label>
-            <div class="relative w-full h-36 sm:h-40 rounded-3xl overflow-hidden border border-surface-high/50 bg-surface-low group shadow-xs">
+            <div class="relative w-full aspect-[16/6] rounded-3xl overflow-hidden border border-surface-high/50 bg-surface-low group shadow-xs">
               <img
                 :src="coverUrl || alexCoverSvg"
                 alt="Обложка"
-                class="w-full h-full object-cover transition-opacity duration-200"
+                class="w-full h-full object-cover object-center transition-opacity duration-200"
               />
               <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
               <label

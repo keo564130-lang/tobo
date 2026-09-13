@@ -47,12 +47,12 @@
 
     <!-- Шапка профиля: Cover + Overlapping Avatar -->
     <div class="relative rounded-3xl overflow-hidden bg-surface-lowest border border-surface-high/60 shadow-xs mb-4">
-      <!-- Баннер-обложка (Cover) в пастельных тонах с фиксированным 16:6 соотношением -->
-      <div class="aspect-[16/6] w-full max-h-48 bg-gradient-to-r from-primary-container via-secondary-container to-tertiary-container relative overflow-hidden">
+      <!-- Баннер-обложка (Cover) в пастельных тонах со строгим соотношением 16:6 -->
+      <div class="aspect-[16/6] w-full bg-gradient-to-r from-primary-container via-secondary-container to-tertiary-container relative overflow-hidden">
         <img
           v-if="authStore.user.cover_url"
           :src="authStore.user.cover_url"
-          class="w-full h-full object-cover object-center opacity-85"
+          class="w-full h-full object-cover object-center opacity-90"
         />
         <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
       </div>

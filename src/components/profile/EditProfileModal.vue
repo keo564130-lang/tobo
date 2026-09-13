@@ -99,11 +99,11 @@
       <div>
         <label class="block text-xs font-semibold text-surface-on mb-1.5">Обложка профиля</label>
         <div class="flex flex-col gap-2">
-          <div class="relative w-full h-32 sm:h-36 rounded-3xl overflow-hidden border border-surface-high/50 bg-surface-low shadow-xs">
+          <div class="relative w-full aspect-[16/6] rounded-3xl overflow-hidden border border-surface-high/50 bg-surface-low shadow-xs">
             <img
               :src="coverUrl || alexCoverSvg"
               alt="Обложка"
-              class="w-full h-full object-cover"
+              class="w-full h-full object-cover object-center"
             />
             <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
             <label for="cover_file_input" class="absolute right-3 bottom-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-medium hover:bg-black/80 cursor-pointer transition-all m3-press-effect shadow-sm">
