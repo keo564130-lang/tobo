@@ -34,7 +34,6 @@
       <template #trailing>
         <template v-if="isOtherUser">
           <M3Button
-            v-if="authStore.isAuthenticated"
             variant="filled"
             size="sm"
             @click="handleDirectMessage"
@@ -366,6 +365,11 @@ const userPosts = computed(() => {
 });
 
 async function handleDirectMessage() {
+  if (!authStore.isAuthenticated) {
+    authStore.openAuthModal('signin');
+    toastStore.show('Войдите в аккаунт, чтобы написать сообщение', 'info');
+    return;
+  }
   if (!displayProfile.value) return;
   const chat = await chatStore.createDirectChat(displayProfile.value);
   if (chat) {

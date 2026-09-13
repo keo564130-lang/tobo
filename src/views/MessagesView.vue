@@ -327,24 +327,40 @@ function getChatDisplayInfo(chat: Chat): { title: string; avatar_url?: string } 
     return { title: chat.title, avatar_url: chat.avatar_url };
   }
   const currentUserId = authStore.user?.id;
-  // 1. Ищем участника, чей ID не равен текущему пользователю
+
+  // 1. Ищем участника-собеседника (чей ID !== currentUserId)
   const otherMember = chat.members?.find(m => m.user_id && m.user_id !== currentUserId);
-  if (otherMember?.user_id) {
-    const profile = localStore.getProfile(otherMember.user_id);
+  const otherUserId = otherMember?.user_id || (chat.created_by && chat.created_by !== currentUserId ? chat.created_by : undefined);
+
+  if (otherUserId) {
+    const profile = localStore.getProfile(otherUserId);
     if (profile) {
       const name = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username;
       if (name) return { title: name, avatar_url: profile.avatar_url || chat.avatar_url };
     }
   }
-  // 2. Если chat.title совпадает с именем текущего пользователя, а создатель чата другой человек — берем профиль создателя
-  const currentFullName = `${authStore.user?.first_name || ''} ${authStore.user?.last_name || ''}`.trim();
-  if (currentFullName && chat.title === currentFullName && chat.created_by && chat.created_by !== currentUserId) {
+
+  // 2. Если текущий пользователь не создатель, а профиль создателя есть
+  if (chat.created_by && chat.created_by !== currentUserId) {
     const creatorProfile = localStore.getProfile(chat.created_by);
     if (creatorProfile) {
       const name = `${creatorProfile.first_name || ''} ${creatorProfile.last_name || ''}`.trim() || creatorProfile.username;
-      if (name) return { title: name, avatar_url: creatorProfile.avatar_url };
+      if (name) return { title: name, avatar_url: creatorProfile.avatar_url || chat.avatar_url };
     }
   }
+
+  // 3. Защита от отображения самого себя: если заголовок совпадает с именем или ником текущего пользователя
+  const myFullName = `${authStore.user?.first_name || ''} ${authStore.user?.last_name || ''}`.trim();
+  const myUsername = authStore.user?.username?.replace(/^@/, '');
+  const isTitleMyOwn = Boolean(
+    (myFullName && chat.title === myFullName) ||
+    (myUsername && (chat.title === myUsername || chat.title === `@${myUsername}`))
+  );
+
+  if (isTitleMyOwn) {
+    return { title: 'Собеседник', avatar_url: chat.avatar_url };
+  }
+
   return { title: chat.title || 'Собеседник', avatar_url: chat.avatar_url };
 }
 

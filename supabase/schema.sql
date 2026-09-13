@@ -254,24 +254,28 @@ RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER AS $$
             SELECT 1 FROM public.chat_members 
             WHERE chat_id = _chat_id AND user_id = _user_id AND role IN ('owner', 'admin')
         )
+        OR
+        EXISTS (
+            SELECT 1 FROM public.profiles 
+            WHERE id = _user_id AND is_developer = true
+        )
     );
 $$;
 
 CREATE OR REPLACE FUNCTION public.is_developer(_user_id UUID)
 RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER AS $$
-    SELECT COALESCE((
-        SELECT is_developer 
-        FROM public.profiles 
-        WHERE id = _user_id
-    ), false);
+    SELECT EXISTS (
+        SELECT 1 FROM public.profiles 
+        WHERE id = _user_id AND is_developer = true
+    );
 $$;
 
 CREATE POLICY "Пользователь видит только те чаты, в которых состоит, или публичные каналы" 
     ON public.chats FOR SELECT 
     USING (
-        (type = 'channel' AND COALESCE((settings->>'is_public')::boolean, true) = true) OR
         created_by = auth.uid() OR
         public.is_chat_member(id, auth.uid()) OR
+        (type = 'channel' AND COALESCE((settings->>'is_public')::boolean, true) = true) OR
         public.is_developer(auth.uid())
     );
 
@@ -281,13 +285,25 @@ CREATE POLICY "Создавать чат может любой авторизо�
 
 CREATE POLICY "Обновлять чат могут владельцы и администраторы" 
     ON public.chats FOR UPDATE 
-    USING (public.is_chat_admin(id, auth.uid()));
+    USING (
+        created_by = auth.uid() OR
+        public.is_chat_admin(id, auth.uid()) OR
+        public.is_developer(auth.uid())
+    );
+
+CREATE POLICY "Удалять чат могут создатели и разработчики" 
+    ON public.chats FOR DELETE 
+    USING (
+        created_by = auth.uid() OR
+        public.is_developer(auth.uid())
+    );
 
 CREATE POLICY "Участники чатов видны членам чата (для каналов - только админам)" 
     ON public.chat_members FOR SELECT 
     USING (
         user_id = auth.uid() OR
         public.is_chat_creator(chat_id, auth.uid()) OR
+        public.is_developer(auth.uid()) OR
         EXISTS (
             SELECT 1 FROM public.chats c
             WHERE c.id = chat_members.chat_id AND (
@@ -302,14 +318,16 @@ CREATE POLICY "Разрешить добавление участников в �
     WITH CHECK (
         auth.uid() = user_id OR
         public.is_chat_creator(chat_id, auth.uid()) OR
-        public.is_chat_admin(chat_id, auth.uid())
+        public.is_chat_admin(chat_id, auth.uid()) OR
+        public.is_developer(auth.uid())
     );
 
 CREATE POLICY "Обновлять участников могут создатели и админы" 
     ON public.chat_members FOR UPDATE 
     USING (
         public.is_chat_creator(chat_id, auth.uid()) OR
-        public.is_chat_admin(chat_id, auth.uid())
+        public.is_chat_admin(chat_id, auth.uid()) OR
+        public.is_developer(auth.uid())
     );
 
 CREATE POLICY "Админы могут удалять участников или участник может покинуть чат сам" 
@@ -317,7 +335,8 @@ CREATE POLICY "Админы могут удалять участников ил�
     USING (
         auth.uid() = user_id OR
         public.is_chat_creator(chat_id, auth.uid()) OR
-        public.is_chat_admin(chat_id, auth.uid())
+        public.is_chat_admin(chat_id, auth.uid()) OR
+        public.is_developer(auth.uid())
     );
 
 -- ------------------------------------------------------------------------------

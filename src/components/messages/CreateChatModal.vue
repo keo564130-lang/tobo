@@ -397,6 +397,7 @@ import M3Button from '@/components/ui/M3Button.vue';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
 import AvatarCropperModal from '@/components/profile/AvatarCropperModal.vue';
 import { useChatStore } from '@/stores/chat';
+import { useAuthStore } from '@/stores/auth';
 import { useToastStore } from '@/stores/toast';
 
 const props = defineProps<{
@@ -409,6 +410,7 @@ const emit = defineEmits<{
 }>();
 
 const chatStore = useChatStore();
+const authStore = useAuthStore();
 const toastStore = useToastStore();
 
 // Общие поля
@@ -587,6 +589,13 @@ function removeMember(idx: number) {
 
 // Отправка форм создания
 async function submitDirectChat() {
+  if (!authStore.isAuthenticated) {
+    authStore.openAuthModal('signin');
+    toastStore.show('Войдите в аккаунт, чтобы создать диалог', 'warning');
+    closeModal();
+    return;
+  }
+
   let target: Profile | null = selectedUser.value;
 
   if (!target) {
@@ -625,6 +634,13 @@ async function submitDirectChat() {
 }
 
 async function submitGroupChat() {
+  if (!authStore.isAuthenticated) {
+    authStore.openAuthModal('signin');
+    toastStore.show('Войдите в аккаунт, чтобы создать группу', 'warning');
+    closeModal();
+    return;
+  }
+
   if (!title.value.trim()) return;
 
   isSubmitting.value = true;
@@ -647,6 +663,13 @@ async function submitGroupChat() {
 }
 
 async function submitChannel() {
+  if (!authStore.isAuthenticated) {
+    authStore.openAuthModal('signin');
+    toastStore.show('Войдите в аккаунт, чтобы создать канал', 'warning');
+    closeModal();
+    return;
+  }
+
   if (!title.value.trim()) return;
 
   isSubmitting.value = true;

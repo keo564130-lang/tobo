@@ -24,6 +24,17 @@ export function isValidUUID(str?: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
 }
 
+export function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 function loadCachedChats(): Chat[] {
   try {
     const raw = localStorage.getItem('tobo_chats_cache');
@@ -173,11 +184,18 @@ export const useChatStore = defineStore('chat', () => {
           try {
             localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
           } catch {}
+
+          if (authStore.user?.id && !chatsListChannel.value) {
+            subscribeToChatsList();
+          }
           return;
         } else {
           // Если чатов нет и кэш пустой — проверяем локальное хранилище
           if (!chats.value.length) {
             chats.value = localStore.getChats().filter(checkChatAccess).filter(c => !isMockChatId(c.id));
+          }
+          if (authStore.user?.id && !chatsListChannel.value) {
+            subscribeToChatsList();
           }
           return;
         }
@@ -196,6 +214,72 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   const activeChatChannel = shallowRef<any>(null);
+  const chatsListChannel = shallowRef<any>(null);
+
+  function unsubscribeFromChatsList() {
+    if (chatsListChannel.value && supabase) {
+      try {
+        supabase.removeChannel(chatsListChannel.value);
+      } catch (e) {
+        console.warn('removeChannel chatsListChannel error:', e);
+      }
+      chatsListChannel.value = null;
+    }
+  }
+
+  function subscribeToChatsList() {
+    if (!isSupabaseConfigured() || !supabase) return;
+    const authUserId = authStore.user?.id;
+    if (!authUserId) return;
+
+    if (chatsListChannel.value) return;
+
+    const channel = supabase.channel(`user_chats_${authUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_members',
+          filter: `user_id=eq.${authUserId}`
+        },
+        async () => {
+          console.log('[Realtime] Added to chat, refreshing chats list...');
+          await refreshChats();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'chat_members',
+          filter: `user_id=eq.${authUserId}`
+        },
+        async () => {
+          console.log('[Realtime] Removed from chat, refreshing chats list...');
+          await refreshChats();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chats'
+        },
+        async () => {
+          await refreshChats();
+        }
+      )
+      .subscribe((status: string) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`[Realtime] Subscribed to user_chats_${authUserId}`);
+        }
+      });
+
+    chatsListChannel.value = channel;
+  }
 
   function unsubscribeFromActiveChat() {
     if (activeChatChannel.value && supabase) {
@@ -590,30 +674,35 @@ export const useChatStore = defineStore('chat', () => {
           authUserId = authUser.id;
         }
         if (authUserId) {
-          const { data: chatData, error: chatError } = await supabase.from('chats').insert({
+          const newChatId = generateUUID();
+          const { error: chatError } = await supabase.from('chats').insert({
+            id: newChatId,
             type,
             title,
             description,
             avatar_url: avatarUrl,
             created_by: authUserId
-          }).select().single();
+          });
 
-          if (!chatError && chatData) {
+          if (!chatError) {
             await supabase.from('chat_members').insert({
-              chat_id: chatData.id,
+              chat_id: newChatId,
               user_id: authUserId,
               role: 'owner'
             });
 
             const createdChat: Chat = {
-              id: chatData.id,
+              id: newChatId,
               type,
               title,
               description,
               avatar_url: avatarUrl,
               created_by: authUserId,
-              created_at: chatData.created_at || new Date().toISOString(),
+              created_at: new Date().toISOString(),
               members_count: 1,
+              members: [
+                { chat_id: newChatId, user_id: authUserId, role: 'owner', joined_at: new Date().toISOString() }
+              ],
               unread_count: 0
             };
 
@@ -630,9 +719,11 @@ export const useChatStore = defineStore('chat', () => {
               localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
             } catch {}
 
-            await selectChat(chatData.id);
+            await selectChat(newChatId);
             await refreshChats();
             return createdChat;
+          } else {
+            console.error('Supabase createChat error:', chatError);
           }
         }
       } catch (err) {
@@ -740,44 +831,66 @@ export const useChatStore = defineStore('chat', () => {
           }
         }
 
-        // Если диалога еще нет — создаем новый
-        const { data: chatData, error: chatError } = await supabase.from('chats').insert({
+        // Если диалога еще нет — создаем новый без .select() во избежание RLS 42501
+        const newChatId = generateUUID();
+        const { error: chatError } = await supabase.from('chats').insert({
+          id: newChatId,
           type: 'direct',
           title,
           avatar_url: avatarUrl,
           created_by: currentUserId
-        }).select().single();
+        });
 
-        if (!chatError && chatData) {
-          // Вставляем создателя ('owner') и собеседника ('member')
-          const membersToInsert = [
-            { chat_id: chatData.id, user_id: currentUserId, role: 'owner' },
-            { chat_id: chatData.id, user_id: targetId, role: 'member' }
-          ];
-
-          const { error: membersErr } = await supabase.from('chat_members').insert(membersToInsert);
-          if (membersErr) {
-            console.warn('Supabase insert members error:', membersErr);
-          }
-
-          await refreshChats();
-          await selectChat(chatData.id);
-
-          const found = chats.value.find(c => c.id === chatData.id);
-          if (found) return found;
-
-          return {
-            id: chatData.id,
-            type: 'direct',
-            title,
-            avatar_url: avatarUrl,
-            description: chatData.description,
-            created_by: currentUserId,
-            created_at: chatData.created_at || new Date().toISOString(),
-            members_count: 2,
-            unread_count: 0
-          };
+        if (chatError) {
+          console.error('Supabase createDirectChat chats insert error:', chatError);
+          return null;
         }
+
+        // Последовательная вставка участников: сначала создатель (owner), затем собеседник (member)
+        const { error: ownerErr } = await supabase.from('chat_members').insert({
+          chat_id: newChatId,
+          user_id: currentUserId,
+          role: 'owner'
+        });
+        if (ownerErr) {
+          console.warn('Supabase insert owner error:', ownerErr);
+        }
+
+        const { error: memberErr } = await supabase.from('chat_members').insert({
+          chat_id: newChatId,
+          user_id: targetId,
+          role: 'member'
+        });
+        if (memberErr) {
+          console.warn('Supabase insert member error:', memberErr);
+        }
+
+        const createdChat: Chat = {
+          id: newChatId,
+          type: 'direct',
+          title,
+          avatar_url: avatarUrl,
+          created_by: currentUserId,
+          created_at: new Date().toISOString(),
+          members_count: 2,
+          members: [
+            { chat_id: newChatId, user_id: currentUserId, role: 'owner', joined_at: new Date().toISOString() },
+            { chat_id: newChatId, user_id: targetId, role: 'member', joined_at: new Date().toISOString() }
+          ],
+          unread_count: 0
+        };
+
+        localStore.saveChat(createdChat);
+        chats.value.unshift(createdChat);
+        try {
+          localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+        } catch {}
+
+        await selectChat(newChatId);
+        await refreshChats();
+
+        const found = chats.value.find(c => c.id === newChatId);
+        return found || createdChat;
       } catch (err) {
         console.error('Supabase createDirectChat error:', err);
       }
@@ -807,42 +920,56 @@ export const useChatStore = defineStore('chat', () => {
         if (user?.id) currentUserId = user.id;
 
         if (currentUserId) {
-          const { data: chatData, error: chatError } = await supabase.from('chats').insert({
+          const newChatId = generateUUID();
+          const { error: chatError } = await supabase.from('chats').insert({
+            id: newChatId,
             type: 'group',
             title,
             description,
             avatar_url: avatarUrl,
             created_by: currentUserId
-          }).select().single();
+          });
 
-          if (!chatError && chatData) {
+          if (!chatError) {
             // Создатель всегда получает role: 'owner'
             await supabase.from('chat_members').insert({
-              chat_id: chatData.id,
+              chat_id: newChatId,
               user_id: currentUserId,
               role: 'owner'
             });
 
-            // Остальные участники
+            // Остальные участники - последовательно
             const otherIds = memberIds.filter(id => id && id !== currentUserId);
-            if (otherIds.length > 0) {
-              const memberRows = otherIds.map(uid => ({
-                chat_id: chatData.id,
-                user_id: uid,
-                role: 'member'
-              }));
-              await supabase.from('chat_members').insert(memberRows);
+            for (const uid of otherIds) {
+              try {
+                await supabase.from('chat_members').insert({
+                  chat_id: newChatId,
+                  user_id: uid,
+                  role: 'member'
+                });
+              } catch (e) {
+                console.warn('Error inserting group member:', uid, e);
+              }
             }
 
             const createdChat: Chat = {
-              id: chatData.id,
+              id: newChatId,
               type: 'group',
               title,
               description,
               avatar_url: avatarUrl,
               created_by: currentUserId,
-              created_at: chatData.created_at || new Date().toISOString(),
+              created_at: new Date().toISOString(),
               members_count: 1 + otherIds.length,
+              members: [
+                { chat_id: newChatId, user_id: currentUserId, role: 'owner', joined_at: new Date().toISOString() },
+                ...otherIds.map(uid => ({
+                  chat_id: newChatId,
+                  user_id: uid,
+                  role: 'member' as const,
+                  joined_at: new Date().toISOString()
+                }))
+              ],
               unread_count: 0
             };
 
@@ -860,9 +987,11 @@ export const useChatStore = defineStore('chat', () => {
               localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
             } catch {}
 
-            await selectChat(chatData.id);
+            await selectChat(newChatId);
             await refreshChats();
             return createdChat;
+          } else {
+            console.error('Supabase createGroupChat error:', chatError);
           }
         }
       } catch (err) {
@@ -894,32 +1023,37 @@ export const useChatStore = defineStore('chat', () => {
         if (user?.id) currentUserId = user.id;
 
         if (currentUserId) {
-          const { data: chatData, error: chatError } = await supabase.from('chats').insert({
+          const newChatId = generateUUID();
+          const { error: chatError } = await supabase.from('chats').insert({
+            id: newChatId,
             type: 'channel',
             title,
             description,
             avatar_url: avatarUrl,
             created_by: currentUserId
-          }).select().single();
+          });
 
-          if (!chatError && chatData) {
+          if (!chatError) {
             // Создатель всегда получает role: 'owner'
             await supabase.from('chat_members').insert({
-              chat_id: chatData.id,
+              chat_id: newChatId,
               user_id: currentUserId,
               role: 'owner'
             });
 
             const createdChat: Chat = {
-              id: chatData.id,
+              id: newChatId,
               type: 'channel',
               title,
               description,
               avatar_url: avatarUrl,
               created_by: currentUserId,
-              created_at: chatData.created_at || new Date().toISOString(),
+              created_at: new Date().toISOString(),
               members_count: 1,
               subscribers_count: 1,
+              members: [
+                { chat_id: newChatId, user_id: currentUserId, role: 'owner', joined_at: new Date().toISOString() }
+              ],
               unread_count: 0
             };
 
@@ -936,9 +1070,11 @@ export const useChatStore = defineStore('chat', () => {
               localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
             } catch {}
 
-            await selectChat(chatData.id);
+            await selectChat(newChatId);
             await refreshChats();
             return createdChat;
+          } else {
+            console.error('Supabase createChannel error:', chatError);
           }
         }
       } catch (err) {
@@ -1363,6 +1499,9 @@ export const useChatStore = defineStore('chat', () => {
     activeChatChannel,
     subscribeToActiveChat,
     unsubscribeFromActiveChat,
+    chatsListChannel,
+    subscribeToChatsList,
+    unsubscribeFromChatsList,
     pollNewMessages,
     refreshChats,
     selectChat,
