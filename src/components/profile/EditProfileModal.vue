@@ -99,7 +99,7 @@
       <div>
         <label class="block text-xs font-semibold text-surface-on mb-1.5">Обложка профиля</label>
         <div class="flex flex-col gap-2">
-          <div class="relative w-full aspect-[16/6] rounded-3xl overflow-hidden border border-surface-high/50 bg-surface-low shadow-xs">
+          <div class="relative w-full aspect-[16/7] rounded-3xl overflow-hidden border border-surface-high/50 bg-surface-low shadow-xs">
             <img
               :src="coverUrl || alexCoverSvg"
               alt="Обложка"

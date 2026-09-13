@@ -37,6 +37,42 @@ const authStore = useAuthStore();
 onMounted(async () => {
   themeStore.applyTheme();
   await authStore.initAuth();
+
+  // Автоматическая проверка обновлений PWA Service Worker и очистка устаревшего кэша
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      
+      // Немедленный запрос обновлений на сервере
+      await reg.update();
+
+      // Если новый сервис-воркер уже ждет активации — активируем его без задержек
+      if (reg.waiting) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              console.info('[PWA] Доступно обновление приложения. Новая версия загружена в кэш.');
+              newWorker.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        }
+      });
+    } catch (swErr) {
+      console.warn('[PWA] Service Worker update check failed:', swErr);
+    }
+
+    // Проверка обновлений при возврате пользователя на вкладку приложения
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(reg => reg.update()).catch(() => {});
+      }
+    });
+  }
 });
 </script>
 
