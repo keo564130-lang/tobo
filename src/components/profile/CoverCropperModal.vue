@@ -246,7 +246,7 @@ async function cropAndSave() {
   const containerRect = cropContainer.value.getBoundingClientRect();
   const imgRect = imgElement.value.getBoundingClientRect();
 
-  // Видоискатель 360x135 с отступом 16px
+  // Видоискатель 360x135 с отступом 16px (пропорция 16:6)
   const viewfinderLeft = containerRect.left + 16;
   const viewfinderTop = containerRect.top + 16;
 
@@ -255,12 +255,15 @@ async function cropAndSave() {
   const cropYInDisplayed = viewfinderTop - imgRect.top;
 
   // Масштаб отображаемого к натуральному размеру исходника
-  const scaleRatio = naturalWidth.value / imgRect.width;
+  const natW = imgElement.value.naturalWidth || naturalWidth.value || imgRect.width;
+  const natH = imgElement.value.naturalHeight || naturalHeight.value || imgRect.height;
+  const scaleRatioX = natW / imgRect.width;
+  const scaleRatioY = natH / imgRect.height;
 
-  const sourceX = cropXInDisplayed * scaleRatio;
-  const sourceY = cropYInDisplayed * scaleRatio;
-  const sourceW = VIEWFINDER_WIDTH * scaleRatio;
-  const sourceH = VIEWFINDER_HEIGHT * scaleRatio;
+  const sourceX = cropXInDisplayed * scaleRatioX;
+  const sourceY = cropYInDisplayed * scaleRatioY;
+  const sourceW = VIEWFINDER_WIDTH * scaleRatioX;
+  const sourceH = VIEWFINDER_HEIGHT * scaleRatioY;
 
   const canvas = document.createElement('canvas');
   canvas.width = TARGET_WIDTH;
@@ -268,33 +271,28 @@ async function cropAndSave() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.onload = () => {
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(
-      img,
-      sourceX,
-      sourceY,
-      sourceW,
-      sourceH,
-      0,
-      0,
-      TARGET_WIDTH,
-      TARGET_HEIGHT
-    );
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(
+    imgElement.value,
+    sourceX,
+    sourceY,
+    sourceW,
+    sourceH,
+    0,
+    0,
+    TARGET_WIDTH,
+    TARGET_HEIGHT
+  );
 
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) return;
-        const base64 = canvas.toDataURL('image/jpeg', 0.92);
-        emit('crop-complete', { base64, blob });
-        emit('update:modelValue', false);
-      },
-      'image/jpeg',
-      0.92
-    );
-  };
-  img.src = props.imageSrc;
+  canvas.toBlob(
+    (blob) => {
+      if (!blob) return;
+      const base64 = canvas.toDataURL('image/jpeg', 0.92);
+      emit('crop-complete', { base64, blob });
+      emit('update:modelValue', false);
+    },
+    'image/jpeg',
+    0.92
+  );
 }
 </script>

@@ -327,7 +327,7 @@ export const useChatStore = defineStore('chat', () => {
 
     const title = `${targetUser.first_name || ''} ${targetUser.last_name || ''}`.trim() || targetUser.username || 'Диалог';
 
-    // Ищем существующий прямой диалог с этим пользователем
+    // Ищем существующий прямой диалог с этим пользователем в кэше
     const existing = chats.value.find(c => 
       c.type === 'direct' && 
       ((targetUser.id && c.members?.some(m => m.user_id === targetUser.id)) || 
@@ -343,6 +343,7 @@ export const useChatStore = defineStore('chat', () => {
 
     if (isSupabaseConfigured() && supabase && currentUserId) {
       try {
+        // 1) Вставляем запись в chats
         const { data: chatData, error: chatError } = await supabase.from('chats').insert({
           type: 'direct',
           title,
@@ -351,17 +352,60 @@ export const useChatStore = defineStore('chat', () => {
         }).select().single();
 
         if (!chatError && chatData) {
-          const membersToInsert = [
-            { chat_id: chatData.id, user_id: currentUserId, role: 'member' }
-          ];
-          if (targetUser.id) {
-            membersToInsert.push({ chat_id: chatData.id, user_id: targetUser.id, role: 'member' });
+          // 2) Вставляем создателя в chat_members с role: 'owner'
+          const { error: ownerErr } = await supabase.from('chat_members').insert({
+            chat_id: chatData.id,
+            user_id: currentUserId,
+            role: 'owner'
+          });
+          if (ownerErr) {
+            console.warn('Supabase insert owner notice:', ownerErr);
           }
-          await supabase.from('chat_members').insert(membersToInsert);
 
-          await refreshChats();
+          // 3) Вторым запросом вставляем второго участника с role: 'member'
+          const targetId = targetUser.id;
+          if (targetId && targetId !== currentUserId) {
+            const { error: memberErr } = await supabase.from('chat_members').insert({
+              chat_id: chatData.id,
+              user_id: targetId,
+              role: 'member'
+            });
+            if (memberErr) {
+              console.warn('Supabase insert member notice:', memberErr);
+            }
+          }
+
+          const createdChat: Chat = {
+            id: chatData.id,
+            type: 'direct',
+            title,
+            avatar_url: avatarUrl,
+            description: chatData.description,
+            created_by: currentUserId,
+            created_at: chatData.created_at || new Date().toISOString(),
+            members_count: targetId ? 2 : 1,
+            members: [
+              { chat_id: chatData.id, user_id: currentUserId, role: 'owner', joined_at: new Date().toISOString() },
+              ...(targetId ? [{ chat_id: chatData.id, user_id: targetId, role: 'member' as const, joined_at: new Date().toISOString() }] : [])
+            ],
+            unread_count: 0
+          };
+
+          // 4) Немедленно добавляем в chats.value и кэш localStorage
+          const existingIdx = chats.value.findIndex(c => c.id === createdChat.id);
+          if (existingIdx === -1) {
+            chats.value.unshift(createdChat);
+          } else {
+            chats.value[existingIdx] = createdChat;
+          }
+
+          try {
+            localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+          } catch {}
+
           await selectChat(chatData.id);
-          return chats.value.find(c => c.id === chatData.id) || chatData;
+          refreshChats();
+          return createdChat;
         }
       } catch (err) {
         console.warn('Supabase createDirectChat failed, fallback to localStore:', err);
@@ -370,8 +414,15 @@ export const useChatStore = defineStore('chat', () => {
 
     // Fallback: localStore
     const newChat = localStore.createChat('direct', title, undefined, avatarUrl);
-    await refreshChats();
+    const existingIdx = chats.value.findIndex(c => c.id === newChat.id);
+    if (existingIdx === -1) {
+      chats.value.unshift(newChat);
+    }
+    try {
+      localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+    } catch {}
     await selectChat(newChat.id);
+    refreshChats();
     return newChat;
   }
 
@@ -392,17 +443,49 @@ export const useChatStore = defineStore('chat', () => {
           }).select().single();
 
           if (!chatError && chatData) {
-            const allMemberIds = Array.from(new Set([currentUserId, ...memberIds]));
-            const memberRows = allMemberIds.map(uid => ({
+            // Создатель всегда получает role: 'owner'
+            await supabase.from('chat_members').insert({
               chat_id: chatData.id,
-              user_id: uid,
-              role: uid === currentUserId ? 'owner' : 'member'
-            }));
-            await supabase.from('chat_members').insert(memberRows);
+              user_id: currentUserId,
+              role: 'owner'
+            });
 
-            await refreshChats();
+            // Остальные участники
+            const otherIds = memberIds.filter(id => id && id !== currentUserId);
+            if (otherIds.length > 0) {
+              const memberRows = otherIds.map(uid => ({
+                chat_id: chatData.id,
+                user_id: uid,
+                role: 'member'
+              }));
+              await supabase.from('chat_members').insert(memberRows);
+            }
+
+            const createdChat: Chat = {
+              id: chatData.id,
+              type: 'group',
+              title,
+              description,
+              created_by: currentUserId,
+              created_at: chatData.created_at || new Date().toISOString(),
+              members_count: 1 + otherIds.length,
+              unread_count: 0
+            };
+
+            const existingIdx = chats.value.findIndex(c => c.id === createdChat.id);
+            if (existingIdx === -1) {
+              chats.value.unshift(createdChat);
+            } else {
+              chats.value[existingIdx] = createdChat;
+            }
+
+            try {
+              localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+            } catch {}
+
             await selectChat(chatData.id);
-            return chats.value.find(c => c.id === chatData.id) || chatData;
+            refreshChats();
+            return createdChat;
           }
         }
       } catch (err) {
@@ -411,8 +494,15 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     const newChat = localStore.createChat('group', title, description);
-    await refreshChats();
+    const existingIdx = chats.value.findIndex(c => c.id === newChat.id);
+    if (existingIdx === -1) {
+      chats.value.unshift(newChat);
+    }
+    try {
+      localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+    } catch {}
     await selectChat(newChat.id);
+    refreshChats();
     return newChat;
   }
 
@@ -433,15 +523,39 @@ export const useChatStore = defineStore('chat', () => {
           }).select().single();
 
           if (!chatError && chatData) {
+            // Создатель всегда получает role: 'owner'
             await supabase.from('chat_members').insert({
               chat_id: chatData.id,
               user_id: currentUserId,
               role: 'owner'
             });
 
-            await refreshChats();
+            const createdChat: Chat = {
+              id: chatData.id,
+              type: 'channel',
+              title,
+              description,
+              created_by: currentUserId,
+              created_at: chatData.created_at || new Date().toISOString(),
+              members_count: 1,
+              subscribers_count: 1,
+              unread_count: 0
+            };
+
+            const existingIdx = chats.value.findIndex(c => c.id === createdChat.id);
+            if (existingIdx === -1) {
+              chats.value.unshift(createdChat);
+            } else {
+              chats.value[existingIdx] = createdChat;
+            }
+
+            try {
+              localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+            } catch {}
+
             await selectChat(chatData.id);
-            return chats.value.find(c => c.id === chatData.id) || chatData;
+            refreshChats();
+            return createdChat;
           }
         }
       } catch (err) {
@@ -450,12 +564,22 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     const newChat = localStore.createChat('channel', title, description);
-    await refreshChats();
+    const existingIdx = chats.value.findIndex(c => c.id === newChat.id);
+    if (existingIdx === -1) {
+      chats.value.unshift(newChat);
+    }
+    try {
+      localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+    } catch {}
     await selectChat(newChat.id);
+    refreshChats();
     return newChat;
   }
 
-  async function updateChat(chatId: string, updates: { title?: string; description?: string; avatar_url?: string }): Promise<boolean> {
+  async function updateChat(
+    chatId: string, 
+    updates: { title?: string; description?: string; avatar_url?: string; settings?: any }
+  ): Promise<boolean> {
     if (isSupabaseConfigured() && supabase) {
       try {
         const { error } = await supabase.from('chats').update(updates).eq('id', chatId);
@@ -489,33 +613,41 @@ export const useChatStore = defineStore('chat', () => {
     const currentUserId = authStore.user?.id || '';
     const q = query.replace(/^@/, '').trim().toLowerCase();
 
-    let remoteProfiles: Profile[] = [];
-
+    // 1. При активном Supabase: СТРОГО поиск по реальной таблице profiles! НИКАКИХ заглушек!
     if (isSupabaseConfigured() && supabase) {
+      if (!q) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .neq('id', currentUserId)
+            .limit(20);
+          if (!error && data) {
+            return (data as Profile[]).filter(p => p.id !== currentUserId);
+          }
+        } catch (err) {
+          console.warn('Supabase fetch profiles error:', err);
+        }
+        return [];
+      }
+
       try {
-        if (q) {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .or(`username.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`)
-            .limit(20);
-          if (!error && data) {
-            remoteProfiles = data as Profile[];
-          }
-        } else {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .limit(20);
-          if (!error && data) {
-            remoteProfiles = data as Profile[];
-          }
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .or(`username.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`)
+          .limit(20);
+
+        if (!error && data) {
+          return (data as Profile[]).filter(p => p.id !== currentUserId);
         }
       } catch (err) {
         console.warn('Supabase searchUsers failed:', err);
       }
+      return [];
     }
 
+    // 2. Только в изолированном офлайн-режиме
     let localProfiles: Profile[] = [];
     try {
       localProfiles = localStore.getProfiles();
@@ -531,15 +663,7 @@ export const useChatStore = defineStore('chat', () => {
       );
     }
 
-    const combined = [...remoteProfiles, ...localProfiles];
-    const uniqueMap = new Map<string, Profile>();
-    for (const p of combined) {
-      if (p && p.id && p.id !== currentUserId && !uniqueMap.has(p.id)) {
-        uniqueMap.set(p.id, p);
-      }
-    }
-
-    return Array.from(uniqueMap.values());
+    return localProfiles.filter(p => p.id !== currentUserId);
   }
 
   function blockUser(userId: string, reason?: string) {

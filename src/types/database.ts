@@ -64,6 +64,7 @@ export interface Chat {
   title: string;
   avatar_url?: string;
   description?: string;
+  settings?: any;
   created_by: string;
   created_at: string;
   last_message?: Message;

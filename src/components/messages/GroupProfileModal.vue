@@ -22,12 +22,30 @@
     <!-- РЕЖИМ 1: Информация о группе -->
     <div v-if="currentView === 'info'" class="flex flex-col gap-4">
       <div class="flex flex-col items-center text-center">
-        <M3Avatar
-          :src="chat?.avatar_url"
-          :name="chat?.title || 'Группа'"
-          size="xl"
-          class="mb-3"
-        />
+        <div class="relative mb-3 group">
+          <M3Avatar
+            :src="chat?.avatar_url"
+            :name="chat?.title || 'Группа'"
+            size="xl"
+          />
+          <button
+            v-if="canEdit"
+            type="button"
+            aria-label="Изменить аватарку группы"
+            title="Изменить аватарку группы"
+            class="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary text-primary-on shadow-md flex items-center justify-center cursor-pointer hover:scale-110 active:scale-95 transition-all"
+            @click="avatarFileInput?.click()"
+          >
+            <span class="material-symbols-rounded text-base">photo_camera</span>
+          </button>
+          <input
+            ref="avatarFileInput"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            @change="uploadAvatar"
+          />
+        </div>
         <h3 class="text-lg font-bold text-surface-on">
           {{ chat?.title }}
         </h3>
@@ -130,6 +148,8 @@ import M3BottomSheet from '@/components/ui/M3BottomSheet.vue';
 import M3Avatar from '@/components/ui/M3Avatar.vue';
 import { currentUserMock, mishaProfileMock, annaProfileMock, toboOfficialProfileMock } from '@/lib/mockData';
 import { useToastStore } from '@/stores/toast';
+import { useAuthStore } from '@/stores/auth';
+import { useChatStore } from '@/stores/chat';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -140,7 +160,36 @@ defineEmits<{
   (e: 'update:modelValue', val: boolean): void;
 }>();
 
+const authStore = useAuthStore();
+const chatStore = useChatStore();
 const toastStore = useToastStore();
+
+const canEdit = computed(() => {
+  if (!props.chat || !authStore.user?.id) return false;
+  return props.chat.created_by === authStore.user.id || authStore.isDeveloper;
+});
+
+const avatarFileInput = ref<HTMLInputElement | null>(null);
+
+async function uploadAvatar(event: Event) {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file || !props.chat) return;
+
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const newUrl = reader.result as string;
+    try {
+      await chatStore.updateChat(props.chat!.id, { avatar_url: newUrl });
+      toastStore.show('Аватарка обновлена', 'success');
+    } catch (err) {
+      console.error(err);
+      toastStore.show('Не удалось обновить аватарку', 'error');
+    }
+  };
+  reader.readAsDataURL(file);
+  target.value = '';
+}
 
 const currentView = ref<'info' | 'add'>('info');
 const currentMembers = ref<ChatMember[]>([]);
