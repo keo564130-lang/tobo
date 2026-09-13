@@ -187,6 +187,10 @@ class LocalDataStore {
     return this.profiles.get(id);
   }
 
+  getProfiles(): Profile[] {
+    return Array.from(this.profiles.values());
+  }
+
   // --- Posts & Algorithmic Ranking ---
   /**
    * Вычисляет ранг поста с обязательным Time Decay:
@@ -376,6 +380,16 @@ class LocalDataStore {
     this.persist(STORAGE_KEYS.CHATS, this.chats);
     this.notify('new_chat', newChat);
     return newChat;
+  }
+
+  updateChat(chatId: string, updates: Partial<Chat>): Chat | undefined {
+    const chat = this.chats.find(c => c.id === chatId);
+    if (chat) {
+      Object.assign(chat, updates);
+      this.persist(STORAGE_KEYS.CHATS, this.chats);
+      this.notify('chat_updated', chat);
+    }
+    return chat;
   }
 
   getMessages(chatId: string): Message[] {

@@ -5,11 +5,26 @@
 
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { Chat, Message, ChatType, BlockedUser, Post } from '@/types/database';
+import type { Chat, Message, ChatType, BlockedUser, Post, Profile } from '@/types/database';
 import { localStore, supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { useAuthStore } from './auth';
+
+function loadCachedChats(): Chat[] {
+  try {
+    const raw = localStorage.getItem('tobo_chats_cache');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {
+    console.warn('Failed to load tobo_chats_cache:', e);
+  }
+  return isSupabaseConfigured() ? [] : localStore.getChats();
+}
 
 export const useChatStore = defineStore('chat', () => {
-  const chats = ref<Chat[]>(isSupabaseConfigured() ? [] : localStore.getChats());
+  const authStore = useAuthStore();
+  const chats = ref<Chat[]>(loadCachedChats());
   const activeChatId = ref<string | null>(null);
   const activeMessages = ref<Message[]>([]);
   const isPeerTyping = ref(false);
@@ -21,7 +36,31 @@ export const useChatStore = defineStore('chat', () => {
         const { data, error } = await supabase
           .from('chats')
           .select('*, chat_members(*)');
+
         if (!error && data) {
+          const chatIds = data.map((c: any) => c.id);
+          const lastMsgMap = new Map<string, Message>();
+
+          if (chatIds.length > 0) {
+            try {
+              const { data: recentMsgs } = await supabase
+                .from('messages')
+                .select('*, sender:profiles(*)')
+                .in('chat_id', chatIds)
+                .order('created_at', { ascending: false });
+
+              if (recentMsgs) {
+                for (const m of recentMsgs) {
+                  if (!lastMsgMap.has(m.chat_id)) {
+                    lastMsgMap.set(m.chat_id, m);
+                  }
+                }
+              }
+            } catch (mErr) {
+              console.warn('Supabase fetch recent messages for chats failed:', mErr);
+            }
+          }
+
           chats.value = data.map((c: any) => ({
             id: c.id,
             type: c.type as ChatType,
@@ -32,54 +71,98 @@ export const useChatStore = defineStore('chat', () => {
             created_at: c.created_at,
             members_count: c.chat_members?.length || 1,
             subscribers_count: c.type === 'channel' ? (c.chat_members?.length || 1) : undefined,
+            members: c.chat_members,
+            last_message: lastMsgMap.get(c.id) || undefined,
             unread_count: 0
           }));
+
+          try {
+            localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+          } catch {}
           return;
         } else {
-          // При ошибке или отсутствии чатов при активном Supabase — строго пустой массив!
-          chats.value = [];
+          // Если чатов нет и кэш пустой — сбрасываем
+          if (!chats.value.length) {
+            chats.value = [];
+          }
           return;
         }
       } catch (err) {
         console.warn('Supabase fetch chats failed:', err);
-        chats.value = [];
         return;
       }
     }
+
     if (!isSupabaseConfigured()) {
       chats.value = localStore.getChats();
+      try {
+        localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+      } catch {}
     }
   }
 
   async function selectChat(chatId: string | null) {
     activeChatId.value = chatId;
-    if (chatId) {
-      if (isSupabaseConfigured() && supabase) {
-        try {
-          const { data, error } = await supabase
-            .from('messages')
-            .select('*, sender:profiles(*)')
-            .eq('chat_id', chatId)
-            .order('created_at', { ascending: true });
-          if (!error && data) {
-            activeMessages.value = data;
-            return;
-          }
-          activeMessages.value = [];
-          return;
-        } catch (err) {
-          console.warn('Supabase fetch messages failed:', err);
-          activeMessages.value = [];
-          return;
+    if (!chatId) {
+      activeMessages.value = [];
+      return;
+    }
+
+    // 1) СРАЗУ же загружаем кэшированные сообщения для 0-секундного ожидания
+    try {
+      const cached = localStorage.getItem('tobo_chat_msgs_' + chatId);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          activeMessages.value = parsed;
         }
       }
-      if (!isSupabaseConfigured()) {
-        activeMessages.value = localStore.getMessages(chatId);
-        localStore.markMessagesAsRead(chatId);
-        refreshChats();
+    } catch (e) {
+      console.warn('Failed to parse cached chat messages:', e);
+    }
+
+    // 2) В фоновом режиме запрашиваем свежие данные из Supabase
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*, sender:profiles(*)')
+          .eq('chat_id', chatId)
+          .order('created_at', { ascending: true });
+
+        if (!error && data) {
+          activeMessages.value = data;
+          try {
+            localStorage.setItem('tobo_chat_msgs_' + chatId, JSON.stringify(data));
+          } catch {}
+
+          if (data.length > 0) {
+            const last = data[data.length - 1];
+            const ch = chats.value.find(c => c.id === chatId);
+            if (ch) {
+              ch.last_message = last;
+              try {
+                localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+              } catch {}
+            }
+          }
+          return;
+        }
+      } catch (err) {
+        console.warn('Supabase fetch messages failed:', err);
       }
-    } else {
-      activeMessages.value = [];
+      return;
+    }
+
+    // 3) Офлайн режим
+    if (!isSupabaseConfigured()) {
+      const offlineMsgs = localStore.getMessages(chatId);
+      activeMessages.value = offlineMsgs;
+      try {
+        localStorage.setItem('tobo_chat_msgs_' + chatId, JSON.stringify(offlineMsgs));
+      } catch {}
+      localStore.markMessagesAsRead(chatId);
+      refreshChats();
     }
   }
 
@@ -104,12 +187,16 @@ export const useChatStore = defineStore('chat', () => {
     // Supabase режим
     if (isSupabaseConfigured() && supabase) {
       try {
+        let authUserId = authStore.user?.id;
         const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (!authUser) return;
+        if (authUser?.id) {
+          authUserId = authUser.id;
+        }
+        if (!authUserId) return;
 
         const { data, error } = await supabase.from('messages').insert({
           chat_id: targetChatId,
-          sender_id: authUser.id,
+          sender_id: authUserId,
           content: params.content,
           media_urls: params.media_urls || [],
           voice_url: params.voice_url,
@@ -123,10 +210,26 @@ export const useChatStore = defineStore('chat', () => {
             ...data,
             forwarded_post: params.forwarded_post || null
           };
+
           if (targetChatId === activeChatId.value) {
-            activeMessages.value.push(formattedMsg);
+            // Предотвращение дублирования
+            if (!activeMessages.value.some(m => m.id === formattedMsg.id)) {
+              activeMessages.value.push(formattedMsg);
+            }
+            try {
+              localStorage.setItem('tobo_chat_msgs_' + targetChatId, JSON.stringify(activeMessages.value));
+            } catch {}
           }
-          await refreshChats();
+
+          const targetChat = chats.value.find(c => c.id === targetChatId);
+          if (targetChat) {
+            targetChat.last_message = formattedMsg;
+            try {
+              localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+            } catch {}
+          }
+
+          refreshChats();
           return formattedMsg;
         }
       } catch (err) {
@@ -144,8 +247,13 @@ export const useChatStore = defineStore('chat', () => {
     });
 
     if (targetChatId === activeChatId.value) {
-      activeMessages.value = localStore.getMessages(targetChatId);
+      const offlineMsgs = localStore.getMessages(targetChatId);
+      activeMessages.value = offlineMsgs;
+      try {
+        localStorage.setItem('tobo_chat_msgs_' + targetChatId, JSON.stringify(offlineMsgs));
+      } catch {}
     }
+
     refreshChats();
 
     // Эмуляция индикатора набора ответа собеседником (в диалоге с Мишей только в офлайн режиме)
@@ -168,21 +276,25 @@ export const useChatStore = defineStore('chat', () => {
   async function createChat(type: ChatType, title: string, description?: string, avatarUrl?: string) {
     if (isSupabaseConfigured() && supabase) {
       try {
+        let authUserId = authStore.user?.id;
         const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (!authUser) return null;
+        if (authUser?.id) {
+          authUserId = authUser.id;
+        }
+        if (!authUserId) return null;
 
         const { data: chatData, error: chatError } = await supabase.from('chats').insert({
           type,
           title,
           description,
           avatar_url: avatarUrl,
-          created_by: authUser.id
+          created_by: authUserId
         }).select().single();
 
         if (!chatError && chatData) {
           await supabase.from('chat_members').insert({
             chat_id: chatData.id,
-            user_id: authUser.id,
+            user_id: authUserId,
             role: 'owner'
           });
 
@@ -201,6 +313,233 @@ export const useChatStore = defineStore('chat', () => {
     refreshChats();
     selectChat(newChat.id);
     return newChat;
+  }
+
+  async function createDirectChat(targetUser: Partial<Profile>): Promise<Chat | null> {
+    let currentUserId = authStore.user?.id;
+
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) currentUserId = user.id;
+      } catch {}
+    }
+
+    const title = `${targetUser.first_name || ''} ${targetUser.last_name || ''}`.trim() || targetUser.username || 'Диалог';
+
+    // Ищем существующий прямой диалог с этим пользователем
+    const existing = chats.value.find(c => 
+      c.type === 'direct' && 
+      ((targetUser.id && c.members?.some(m => m.user_id === targetUser.id)) || 
+       c.title === title)
+    );
+
+    if (existing) {
+      await selectChat(existing.id);
+      return existing;
+    }
+
+    const avatarUrl = targetUser.avatar_url;
+
+    if (isSupabaseConfigured() && supabase && currentUserId) {
+      try {
+        const { data: chatData, error: chatError } = await supabase.from('chats').insert({
+          type: 'direct',
+          title,
+          avatar_url: avatarUrl,
+          created_by: currentUserId
+        }).select().single();
+
+        if (!chatError && chatData) {
+          const membersToInsert = [
+            { chat_id: chatData.id, user_id: currentUserId, role: 'member' }
+          ];
+          if (targetUser.id) {
+            membersToInsert.push({ chat_id: chatData.id, user_id: targetUser.id, role: 'member' });
+          }
+          await supabase.from('chat_members').insert(membersToInsert);
+
+          await refreshChats();
+          await selectChat(chatData.id);
+          return chats.value.find(c => c.id === chatData.id) || chatData;
+        }
+      } catch (err) {
+        console.warn('Supabase createDirectChat failed, fallback to localStore:', err);
+      }
+    }
+
+    // Fallback: localStore
+    const newChat = localStore.createChat('direct', title, undefined, avatarUrl);
+    await refreshChats();
+    await selectChat(newChat.id);
+    return newChat;
+  }
+
+  async function createGroupChat(title: string, memberIds: string[] = [], description?: string): Promise<Chat | null> {
+    let currentUserId = authStore.user?.id;
+
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) currentUserId = user.id;
+
+        if (currentUserId) {
+          const { data: chatData, error: chatError } = await supabase.from('chats').insert({
+            type: 'group',
+            title,
+            description,
+            created_by: currentUserId
+          }).select().single();
+
+          if (!chatError && chatData) {
+            const allMemberIds = Array.from(new Set([currentUserId, ...memberIds]));
+            const memberRows = allMemberIds.map(uid => ({
+              chat_id: chatData.id,
+              user_id: uid,
+              role: uid === currentUserId ? 'owner' : 'member'
+            }));
+            await supabase.from('chat_members').insert(memberRows);
+
+            await refreshChats();
+            await selectChat(chatData.id);
+            return chats.value.find(c => c.id === chatData.id) || chatData;
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase createGroupChat failed, fallback to localStore:', err);
+      }
+    }
+
+    const newChat = localStore.createChat('group', title, description);
+    await refreshChats();
+    await selectChat(newChat.id);
+    return newChat;
+  }
+
+  async function createChannel(title: string, description?: string): Promise<Chat | null> {
+    let currentUserId = authStore.user?.id;
+
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) currentUserId = user.id;
+
+        if (currentUserId) {
+          const { data: chatData, error: chatError } = await supabase.from('chats').insert({
+            type: 'channel',
+            title,
+            description,
+            created_by: currentUserId
+          }).select().single();
+
+          if (!chatError && chatData) {
+            await supabase.from('chat_members').insert({
+              chat_id: chatData.id,
+              user_id: currentUserId,
+              role: 'owner'
+            });
+
+            await refreshChats();
+            await selectChat(chatData.id);
+            return chats.value.find(c => c.id === chatData.id) || chatData;
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase createChannel failed, fallback to localStore:', err);
+      }
+    }
+
+    const newChat = localStore.createChat('channel', title, description);
+    await refreshChats();
+    await selectChat(newChat.id);
+    return newChat;
+  }
+
+  async function updateChat(chatId: string, updates: { title?: string; description?: string; avatar_url?: string }): Promise<boolean> {
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { error } = await supabase.from('chats').update(updates).eq('id', chatId);
+        if (error) {
+          console.warn('Supabase updateChat error:', error);
+        }
+      } catch (err) {
+        console.warn('Supabase updateChat failed:', err);
+      }
+    }
+
+    const target = chats.value.find(c => c.id === chatId);
+    if (target) {
+      Object.assign(target, updates);
+    }
+
+    try {
+      localStore.updateChat(chatId, updates);
+    } catch {}
+
+    try {
+      localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+    } catch (e) {
+      console.warn('Failed to update tobo_chats_cache:', e);
+    }
+
+    return true;
+  }
+
+  async function searchUsers(query: string): Promise<Profile[]> {
+    const currentUserId = authStore.user?.id || '';
+    const q = query.replace(/^@/, '').trim().toLowerCase();
+
+    let remoteProfiles: Profile[] = [];
+
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        if (q) {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .or(`username.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`)
+            .limit(20);
+          if (!error && data) {
+            remoteProfiles = data as Profile[];
+          }
+        } else {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .limit(20);
+          if (!error && data) {
+            remoteProfiles = data as Profile[];
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase searchUsers failed:', err);
+      }
+    }
+
+    let localProfiles: Profile[] = [];
+    try {
+      localProfiles = localStore.getProfiles();
+    } catch {
+      localProfiles = [];
+    }
+
+    if (q) {
+      localProfiles = localProfiles.filter(p => 
+        (p.username && p.username.toLowerCase().includes(q)) ||
+        (p.first_name && p.first_name.toLowerCase().includes(q)) ||
+        (p.last_name && p.last_name.toLowerCase().includes(q))
+      );
+    }
+
+    const combined = [...remoteProfiles, ...localProfiles];
+    const uniqueMap = new Map<string, Profile>();
+    for (const p of combined) {
+      if (p && p.id && p.id !== currentUserId && !uniqueMap.has(p.id)) {
+        uniqueMap.set(p.id, p);
+      }
+    }
+
+    return Array.from(uniqueMap.values());
   }
 
   function blockUser(userId: string, reason?: string) {
@@ -232,7 +571,7 @@ export const useChatStore = defineStore('chat', () => {
     return localStore.reportUser(userId, reason, details);
   }
 
-  // Realtime WebSocket подписка Supabase Realtime
+  // Realtime WebSocket подписка Supabase Realtime с дедупликацией
   if (isSupabaseConfigured() && supabase) {
     try {
       supabase
@@ -241,9 +580,27 @@ export const useChatStore = defineStore('chat', () => {
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'messages' },
           (payload: any) => {
-            if (activeChatId.value && payload.new.chat_id === activeChatId.value) {
-              activeMessages.value.push(payload.new);
+            const incoming = payload.new;
+            if (activeChatId.value && incoming.chat_id === activeChatId.value) {
+              const existingIdx = activeMessages.value.findIndex(m => m.id === incoming.id);
+              if (existingIdx === -1) {
+                activeMessages.value.push(incoming);
+              } else {
+                activeMessages.value[existingIdx] = { ...activeMessages.value[existingIdx], ...incoming };
+              }
+              try {
+                localStorage.setItem('tobo_chat_msgs_' + activeChatId.value, JSON.stringify(activeMessages.value));
+              } catch {}
             }
+
+            const targetChat = chats.value.find(c => c.id === incoming.chat_id);
+            if (targetChat) {
+              targetChat.last_message = incoming;
+              try {
+                localStorage.setItem('tobo_chats_cache', JSON.stringify(chats.value));
+              } catch {}
+            }
+
             refreshChats();
           }
         )
@@ -269,6 +626,9 @@ export const useChatStore = defineStore('chat', () => {
       localStore.deleteMessage(chatId, messageId);
     }
     activeMessages.value = activeMessages.value.filter(m => m.id !== messageId);
+    try {
+      localStorage.setItem('tobo_chat_msgs_' + chatId, JSON.stringify(activeMessages.value));
+    } catch {}
     await refreshChats();
     return true;
   }
@@ -297,6 +657,11 @@ export const useChatStore = defineStore('chat', () => {
     sendMessage,
     deleteMessage,
     createChat,
+    createDirectChat,
+    createGroupChat,
+    createChannel,
+    updateChat,
+    searchUsers,
     blockUser,
     unblockUser,
     isUserBlocked,
