@@ -113,6 +113,56 @@
 
     <!-- Список диалогов -->
     <div class="flex flex-col gap-2">
+      <!-- Чистое пустое состояние при отсутствии диалогов -->
+      <div
+        v-if="filteredChats.length === 0"
+        class="p-8 sm:p-10 rounded-4xl bg-surface-lowest border border-surface-high/60 text-center flex flex-col items-center gap-3.5 shadow-xs my-4"
+      >
+        <div class="w-16 h-16 rounded-3xl bg-primary-container text-primary-onContainer flex items-center justify-center shadow-xs">
+          <span class="material-symbols-rounded text-3xl">forum</span>
+        </div>
+        <div class="flex flex-col gap-1">
+          <h3 class="text-base font-bold text-surface-on">
+            {{ searchQuery.trim() ? 'Диалоги не найдены' : 'Пока нет сообщений' }}
+          </h3>
+          <p class="text-xs text-surface-onVariant/80 max-w-sm leading-relaxed">
+            {{ searchQuery.trim() 
+              ? `По запросу «${searchQuery}» ничего не найдено. Проверьте запрос или сбросьте фильтры.` 
+              : 'Начните новый диалог или перейдите в официальный Канал Разработки tobo!' }}
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-center gap-2 mt-2">
+          <button
+            v-if="searchQuery.trim() || activeFilter !== 'all'"
+            type="button"
+            class="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-high/60 hover:bg-surface-high text-surface-on transition-colors m3-press-effect cursor-pointer"
+            @click="resetFilters"
+          >
+            Сбросить фильтры
+          </button>
+
+          <M3Button
+            variant="filled"
+            size="sm"
+            @click="openCreate('direct')"
+          >
+            <span class="material-symbols-rounded text-base">person_add</span>
+            <span>Начать диалог</span>
+          </M3Button>
+
+          <M3Button
+            v-if="devChannel"
+            variant="tonal"
+            size="sm"
+            @click="openDevChannel"
+          >
+            <span class="material-symbols-rounded text-base">campaign</span>
+            <span>Канал Разработки</span>
+          </M3Button>
+        </div>
+      </div>
+
       <div
         v-for="chat in filteredChats"
         :key="chat.id"
@@ -201,7 +251,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import type { ChatType } from '@/types/database';
 import FloatingTopBar from '@/components/ui/FloatingTopBar.vue';
 import FloatingBottomNav from '@/components/ui/FloatingBottomNav.vue';
@@ -212,6 +262,10 @@ import CreateChatModal from '@/components/messages/CreateChatModal.vue';
 import { useChatStore } from '@/stores/chat';
 
 const chatStore = useChatStore();
+
+onMounted(async () => {
+  await chatStore.refreshChats();
+});
 
 const searchQuery = ref('');
 const showMobileSearch = ref(false);
@@ -271,5 +325,29 @@ function formatChatTime(iso: string) {
     return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   }
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+}
+
+const devChannel = computed(() => {
+  return chatStore.chats.find(c => c.title.includes('Канал Разработки') || c.type === 'channel') || null;
+});
+
+function openDevChannel() {
+  if (devChannel.value) {
+    openChat(devChannel.value.id);
+  } else {
+    activeFilter.value = 'all';
+    searchQuery.value = '';
+    const found = chatStore.chats.find(c => c.title.includes('Канал Разработки') || c.type === 'channel');
+    if (found) {
+      openChat(found.id);
+    } else {
+      openCreate('channel');
+    }
+  }
+}
+
+function resetFilters() {
+  searchQuery.value = '';
+  activeFilter.value = 'all';
 }
 </script>

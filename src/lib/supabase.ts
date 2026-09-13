@@ -88,7 +88,7 @@ class LocalDataStore {
       localStorage.removeItem(STORAGE_KEYS.COMMENTS);
     }
     const userCache = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-    if (userCache && userCache.includes('unsplash.com')) {
+    if (userCache && (userCache.includes('unsplash.com') || userCache.includes('user-me-001') || userCache.includes('Поляков'))) {
       localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     }
     const messageCache = localStorage.getItem(STORAGE_KEYS.MESSAGES);
@@ -102,9 +102,20 @@ class LocalDataStore {
     this.profiles.set(annaProfileMock.id, { ...annaProfileMock });
     this.profiles.set(toboOfficialProfileMock.id, { ...toboOfficialProfileMock });
 
-    // 2. Инициализация текущего пользователя
+    // 2. Инициализация текущего пользователя (чистый гостевой профиль по умолчанию)
     const savedUser = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-    this.currentUser = savedUser ? JSON.parse(savedUser) : { ...currentUserMock };
+    this.currentUser = savedUser ? JSON.parse(savedUser) : {
+      id: '',
+      username: '',
+      first_name: 'Гость',
+      last_name: '',
+      avatar_url: '',
+      cover_url: '',
+      bio: '',
+      is_online: false,
+      is_developer: false,
+      created_at: new Date().toISOString()
+    };
 
     // 3. Инициализация постов
     const savedPosts = localStorage.getItem(STORAGE_KEYS.POSTS);

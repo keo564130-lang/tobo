@@ -42,6 +42,26 @@
 
     <!-- Список постов ленты -->
     <div class="flex flex-col gap-4">
+      <!-- Пустое состояние если постов ещё нет -->
+      <div
+        v-if="feedStore.posts.length === 0 && !feedStore.isLoading"
+        class="p-8 sm:p-10 rounded-4xl bg-surface-lowest border border-surface-high/60 text-center flex flex-col items-center gap-3.5 shadow-xs my-4"
+      >
+        <div class="w-16 h-16 rounded-3xl bg-primary-container text-primary-onContainer flex items-center justify-center shadow-xs">
+          <span class="material-symbols-rounded text-3xl">dynamic_feed</span>
+        </div>
+        <div class="flex flex-col gap-1">
+          <h3 class="text-base font-bold text-surface-on">В ленте пока нет записей</h3>
+          <p class="text-xs text-surface-onVariant/80 max-w-xs leading-relaxed">
+            Будьте первым, кто опубликует запись!
+          </p>
+        </div>
+        <M3Button variant="filled" size="sm" class="mt-1" @click="showCreateModal = true">
+          <span class="material-symbols-rounded text-base">add</span>
+          <span>Создать запись</span>
+        </M3Button>
+      </div>
+
       <!-- Карточки постов -->
       <PostCard
         v-for="post in feedStore.posts"
@@ -66,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import type { Post } from '@/types/database';
 import FloatingTopBar from '@/components/ui/FloatingTopBar.vue';
 import FloatingBottomNav from '@/components/ui/FloatingBottomNav.vue';
@@ -84,6 +104,10 @@ const showCreateModal = ref(false);
 const showCommentsSheet = ref(false);
 const activeCommentPost = ref<Post | null>(null);
 const isRefreshing = ref(false);
+
+onMounted(async () => {
+  await feedStore.refreshFeed();
+});
 
 function openComments(post: Post) {
   activeCommentPost.value = post;

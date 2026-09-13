@@ -34,8 +34,9 @@ import { useAuthStore } from '@/stores/auth';
 const themeStore = useThemeStore();
 const authStore = useAuthStore();
 
-onMounted(() => {
+onMounted(async () => {
   themeStore.applyTheme();
+  await authStore.initAuth();
 });
 </script>
 

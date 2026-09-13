@@ -9,7 +9,7 @@ import type { Chat, Message, ChatType, BlockedUser } from '@/types/database';
 import { localStore, supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 export const useChatStore = defineStore('chat', () => {
-  const chats = ref<Chat[]>(localStore.getChats());
+  const chats = ref<Chat[]>(isSupabaseConfigured() ? [] : localStore.getChats());
   const activeChatId = ref<string | null>(null);
   const activeMessages = ref<Message[]>([]);
   const isPeerTyping = ref(false);
@@ -21,7 +21,7 @@ export const useChatStore = defineStore('chat', () => {
         const { data, error } = await supabase
           .from('chats')
           .select('*, chat_members(*)');
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
           chats.value = data.map((c: any) => ({
             id: c.id,
             type: c.type as ChatType,
@@ -31,16 +31,24 @@ export const useChatStore = defineStore('chat', () => {
             created_by: c.created_by,
             created_at: c.created_at,
             members_count: c.chat_members?.length || 1,
-            subscribers_count: c.type === 'channel' ? 1240 : undefined,
+            subscribers_count: c.type === 'channel' ? (c.chat_members?.length || 1) : undefined,
             unread_count: 0
           }));
           return;
+        } else {
+          // При ошибке или отсутствии чатов при активном Supabase — строго пустой массив!
+          chats.value = [];
+          return;
         }
       } catch (err) {
-        console.warn('Supabase fetch chats failed, using localStore:', err);
+        console.warn('Supabase fetch chats failed:', err);
+        chats.value = [];
+        return;
       }
     }
-    chats.value = localStore.getChats();
+    if (!isSupabaseConfigured()) {
+      chats.value = localStore.getChats();
+    }
   }
 
   async function selectChat(chatId: string | null) {
@@ -50,21 +58,26 @@ export const useChatStore = defineStore('chat', () => {
         try {
           const { data, error } = await supabase
             .from('messages')
-            .select('*')
+            .select('*, sender:profiles(*)')
             .eq('chat_id', chatId)
             .order('created_at', { ascending: true });
-          if (!error && data && data.length > 0) {
+          if (!error && data) {
             activeMessages.value = data;
             return;
           }
+          activeMessages.value = [];
+          return;
         } catch (err) {
-          console.warn('Supabase fetch messages failed, using localStore:', err);
+          console.warn('Supabase fetch messages failed:', err);
+          activeMessages.value = [];
+          return;
         }
       }
-
-      activeMessages.value = localStore.getMessages(chatId);
-      localStore.markMessagesAsRead(chatId);
-      refreshChats();
+      if (!isSupabaseConfigured()) {
+        activeMessages.value = localStore.getMessages(chatId);
+        localStore.markMessagesAsRead(chatId);
+        refreshChats();
+      }
     } else {
       activeMessages.value = [];
     }
@@ -85,7 +98,34 @@ export const useChatStore = defineStore('chat', () => {
   }) {
     if (!activeChatId.value) return;
 
-    // Оптимистичное сохранение локально
+    // Supabase режим
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser) return;
+
+        const { data, error } = await supabase.from('messages').insert({
+          chat_id: activeChatId.value,
+          sender_id: authUser.id,
+          content: params.content,
+          media_urls: params.media_urls || [],
+          voice_url: params.voice_url,
+          voice_duration: params.voice_duration,
+          voice_wave: params.voice_wave,
+          forwarded_post_id: params.forwarded_post_id
+        }).select('*, sender:profiles(*)').single();
+
+        if (!error && data) {
+          activeMessages.value.push(data);
+          await refreshChats();
+        }
+      } catch (err) {
+        console.warn('Supabase message insert failed:', err);
+      }
+      return;
+    }
+
+    // Офлайн-режим
     const newMsg = localStore.sendMessage({
       chat_id: activeChatId.value,
       ...params
@@ -94,24 +134,7 @@ export const useChatStore = defineStore('chat', () => {
     activeMessages.value = localStore.getMessages(activeChatId.value);
     refreshChats();
 
-    // Отправка в реальный Supabase
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from('messages').insert({
-          chat_id: activeChatId.value,
-          content: params.content,
-          media_urls: params.media_urls || [],
-          voice_url: params.voice_url,
-          voice_duration: params.voice_duration,
-          voice_wave: params.voice_wave,
-          forwarded_post_id: params.forwarded_post_id
-        });
-      } catch (err) {
-        console.warn('Supabase message insert failed, saved to local cache:', err);
-      }
-    }
-
-    // Эмуляция индикатора набора ответа собеседником (в диалоге с Мишей)
+    // Эмуляция индикатора набора ответа собеседником (в диалоге с Мишей только в офлайн режиме)
     if (activeChatId.value === 'chat-direct-misha-003') {
       setTimeout(() => {
         isPeerTyping.value = true;
@@ -129,23 +152,40 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function createChat(type: ChatType, title: string, description?: string, avatarUrl?: string) {
-    const newChat = localStore.createChat(type, title, description, avatarUrl);
-    refreshChats();
-    selectChat(newChat.id);
-
     if (isSupabaseConfigured() && supabase) {
       try {
-        await supabase.from('chats').insert({
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser) return null;
+
+        const { data: chatData, error: chatError } = await supabase.from('chats').insert({
           type,
           title,
           description,
-          avatar_url: avatarUrl
-        });
+          avatar_url: avatarUrl,
+          created_by: authUser.id
+        }).select().single();
+
+        if (!chatError && chatData) {
+          await supabase.from('chat_members').insert({
+            chat_id: chatData.id,
+            user_id: authUser.id,
+            role: 'owner'
+          });
+
+          await refreshChats();
+          await selectChat(chatData.id);
+          return chatData;
+        }
       } catch (err) {
         console.warn('Supabase createChat failed:', err);
       }
+      return null;
     }
 
+    // Офлайн-режим
+    const newChat = localStore.createChat(type, title, description, avatarUrl);
+    refreshChats();
+    selectChat(newChat.id);
     return newChat;
   }
 
@@ -199,12 +239,14 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  // Локальная подписка
+  // Локальная подписка только в офлайн режиме
   localStore.subscribe((event) => {
-    if (event.type === 'new_message' || event.type === 'new_chat' || event.type === 'messages_read') {
-      refreshChats();
-      if (activeChatId.value) {
-        activeMessages.value = localStore.getMessages(activeChatId.value);
+    if (!isSupabaseConfigured()) {
+      if (event.type === 'new_message' || event.type === 'new_chat' || event.type === 'messages_read') {
+        refreshChats();
+        if (activeChatId.value) {
+          activeMessages.value = localStore.getMessages(activeChatId.value);
+        }
       }
     }
   });

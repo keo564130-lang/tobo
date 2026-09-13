@@ -9,25 +9,37 @@ import { ref, computed } from 'vue';
 import type { Session, User } from '@supabase/supabase-js';
 import type { Profile } from '@/types/database';
 import { supabase, isSupabaseConfigured, localStore } from '@/lib/supabase';
-import { currentUserMock, mishaProfileMock } from '@/lib/mockData';
+
+export const emptyGuestProfile: Profile = {
+  id: '',
+  username: '',
+  first_name: 'Гость',
+  last_name: '',
+  avatar_url: '',
+  cover_url: '',
+  bio: '',
+  is_online: false,
+  is_developer: false,
+  created_at: new Date().toISOString()
+};
 
 export const useAuthStore = defineStore('auth', () => {
   // Состояния
   const session = ref<Session | null>(null);
   const authUser = ref<User | null>(null);
-  const user = ref<Profile>(localStore.getCurrentUser());
+  const user = ref<Profile>({ ...emptyGuestProfile });
   const isLoading = ref(false);
   const isInitialized = ref(false);
   const authError = ref<string | null>(null);
 
   // Модальные окна
   const showAuthModal = ref(false);
-  const authModalMode = ref<'signin' | 'signup'>('signin');
+  const authModalMode = ref<'signin' | 'signup'>('signup');
   const showOnboarding = ref(false);
   const onboardingStep = ref<'register' | 'profile'>('profile');
 
   // Геттеры
-  const isAuthenticated = computed(() => Boolean(session.value?.user || (user.value && user.value.id !== '')));
+  const isAuthenticated = computed(() => Boolean(session.value?.user && user.value.id && user.value.id !== 'user-me-001'));
   const isDeveloper = computed(() => Boolean(user.value?.is_developer));
 
   // 1. ИНИЦИАЛИЗАЦИЯ СЕССИИ И СЛУШАТЕЛЬ SUPABASE AUTH
@@ -43,6 +55,12 @@ export const useAuthStore = defineStore('auth', () => {
 
         if (existingSession?.user) {
           await loadUserProfile(existingSession.user.id);
+          showAuthModal.value = false;
+        } else {
+          // Активной сессии нет — немедленно открываем экран регистрации/входа
+          user.value = { ...emptyGuestProfile };
+          authModalMode.value = 'signup';
+          showAuthModal.value = true;
         }
 
         // Слушатель событий смены состояния авторизации
@@ -52,14 +70,24 @@ export const useAuthStore = defineStore('auth', () => {
 
           if (event === 'SIGNED_IN' && currentSession?.user) {
             await loadUserProfile(currentSession.user.id);
+            showAuthModal.value = false;
           } else if (event === 'SIGNED_OUT') {
-            user.value = { ...currentUserMock, id: '', is_developer: false };
-            localStore.updateCurrentUser(user.value);
+            user.value = { ...emptyGuestProfile };
+            authModalMode.value = 'signin';
+            showAuthModal.value = true;
           }
         });
+      } else {
+        // Офлайн режим — сразу открываем окно регистрации
+        user.value = { ...emptyGuestProfile };
+        authModalMode.value = 'signup';
+        showAuthModal.value = true;
       }
     } catch (err: any) {
       console.warn('initAuth warning:', err);
+      user.value = { ...emptyGuestProfile };
+      authModalMode.value = 'signup';
+      showAuthModal.value = true;
     } finally {
       isLoading.value = false;
       isInitialized.value = true;
@@ -82,6 +110,35 @@ export const useAuthStore = defineStore('auth', () => {
           is_developer: Boolean(data.is_developer)
         };
         localStore.updateCurrentUser(user.value);
+      } else if (authUser.value) {
+        const meta = authUser.value.user_metadata || {};
+        const email = authUser.value.email || '';
+        const baseUsername = meta.username || email.split('@')[0] || `user_${userId.slice(0, 8)}`;
+        const firstName = meta.first_name || (baseUsername.charAt(0).toUpperCase() + baseUsername.slice(1));
+        const fallbackProfile: Profile = {
+          id: userId,
+          username: baseUsername,
+          first_name: firstName,
+          last_name: meta.last_name || '',
+          avatar_url: meta.avatar_url || '',
+          cover_url: meta.cover_url || '',
+          bio: meta.bio || '',
+          is_online: true,
+          is_developer: false,
+          created_at: authUser.value.created_at || new Date().toISOString()
+        };
+        user.value = fallbackProfile;
+        localStore.updateCurrentUser(user.value);
+
+        // Попытка сохранения в profiles
+        await supabase.from('profiles').upsert({
+          id: userId,
+          username: baseUsername,
+          first_name: firstName,
+          last_name: meta.last_name || '',
+          avatar_url: meta.avatar_url || '',
+          is_developer: false
+        });
       }
     } catch (err) {
       console.warn('loadUserProfile error:', err);
@@ -175,12 +232,17 @@ export const useAuthStore = defineStore('auth', () => {
   // 4. ВЫХОД
   async function signOut(): Promise<void> {
     if (isSupabaseConfigured() && supabase) {
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.warn('signOut error:', err);
+      }
     }
     session.value = null;
     authUser.value = null;
-    user.value = { ...currentUserMock, id: '', is_developer: false };
-    localStore.updateCurrentUser(user.value);
+    user.value = { ...emptyGuestProfile };
+    authModalMode.value = 'signin';
+    showAuthModal.value = true;
   }
 
   // 5. ЗАГРУЗКА АВАТАРА В SUPABASE STORAGE
@@ -275,21 +337,14 @@ export const useAuthStore = defineStore('auth', () => {
   // Быстрая регистрация (обратная совместимость)
   function registerQuickUser(email: string, _password?: string) {
     const baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').toLowerCase() || 'user';
-    const updated = localStore.updateCurrentUser({
+    user.value = {
+      ...emptyGuestProfile,
+      id: `user-${Date.now()}`,
       username: baseUsername,
       first_name: baseUsername.charAt(0).toUpperCase() + baseUsername.slice(1)
-    });
-    user.value = updated;
+    };
+    localStore.updateCurrentUser(user.value);
     localStorage.setItem('tobo_user_email', email);
-  }
-
-  // Переключение аккаунта (локальный режим отладки)
-  function switchAccount(target: 'me' | 'misha') {
-    if (target === 'misha') {
-      user.value = localStore.updateCurrentUser({ ...mishaProfileMock });
-    } else {
-      user.value = localStore.updateCurrentUser({ ...currentUserMock });
-    }
   }
 
   function openAuthModal(mode: 'signin' | 'signup' = 'signin') {
@@ -326,7 +381,6 @@ export const useAuthStore = defineStore('auth', () => {
     completeOnboarding,
     updateProfile,
     registerQuickUser,
-    switchAccount,
     openAuthModal,
     openOnboarding
   };

@@ -12,24 +12,26 @@
       </template>
 
       <template #trailing>
-        <!-- Переключатель тестового аккаунта ("Алексей" <-> "Миша") -->
-        <button
-          class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-surface-low text-xs font-semibold text-surface-on hover:bg-surface-high transition-colors m3-press-effect cursor-pointer max-w-[110px] sm:max-w-[140px] shrink-0"
-          title="Сменить активного пользователя для проверки диалогов"
-          @click="toggleDemoUser"
-        >
-          <span class="material-symbols-rounded text-sm text-primary shrink-0">swap_horiz</span>
-          <span class="text-primary font-sans font-semibold text-xs truncate">{{ authStore.user.first_name }}</span>
-        </button>
-
-        <!-- Кнопка авторизации (Вход / Регистрация) -->
-        <button
-          type="button"
-          class="w-9 h-9 rounded-full flex items-center justify-center text-surface-onVariant hover:bg-surface-high transition-colors m3-press-effect shrink-0 cursor-pointer"
-          title="Вход / Регистрация"
+        <!-- Кнопка Входа / Регистрации если не авторизован -->
+        <M3Button
+          v-if="!authStore.isAuthenticated"
+          variant="filled"
+          size="sm"
           @click="authStore.openAuthModal('signin')"
         >
-          <span class="material-symbols-rounded text-2xl">account_circle</span>
+          <span class="material-symbols-rounded text-base">login</span>
+          <span>Войти</span>
+        </M3Button>
+
+        <!-- Кнопка выхода если авторизован -->
+        <button
+          v-else
+          type="button"
+          class="w-9 h-9 rounded-full flex items-center justify-center text-rose-500 hover:bg-rose-500/10 transition-colors m3-press-effect shrink-0 cursor-pointer"
+          title="Выйти из аккаунта"
+          @click="handleSignOut"
+        >
+          <span class="material-symbols-rounded text-xl">logout</span>
         </button>
 
         <!-- Кнопка перехода в Настройки -->
@@ -60,36 +62,17 @@
         <div class="flex items-end justify-between -mt-12 mb-3">
           <div class="relative">
             <M3Avatar
-              :src="authStore.user.avatar_url"
-              :name="authStore.user.first_name"
+              :src="authStore.isAuthenticated ? authStore.user.avatar_url : undefined"
+              :name="authStore.isAuthenticated ? (authStore.user.first_name || 'tobo') : 'Гость'"
               size="2xl"
               class="ring-4 ring-surface-lowest shadow-elevation-2 rounded-full"
             />
           </div>
 
-          <!-- Кнопки управления профилем -->
-          <div class="flex items-center gap-1.5 flex-wrap justify-end">
+          <!-- Кнопка действия: ровно одна аккуратная кнопка, выровненная по низу, строго на карточке -->
+          <div class="pb-1 shrink-0">
             <M3Button
-              variant="tonal"
-              size="sm"
-              title="Вход / Регистрация"
-              @click="authStore.openAuthModal('signin')"
-            >
-              <span class="material-symbols-rounded text-base">login</span>
-              <span class="hidden sm:inline">Вход</span>
-            </M3Button>
-
-            <M3Button
-              variant="text"
-              size="sm"
-              title="Мастер настройки профиля"
-              @click="authStore.openOnboarding('profile')"
-            >
-              <span class="material-symbols-rounded text-base">auto_awesome</span>
-              <span class="hidden sm:inline">Онбординг</span>
-            </M3Button>
-
-            <M3Button
+              v-if="authStore.isAuthenticated"
               variant="tonal"
               size="sm"
               @click="showEditModal = true"
@@ -97,30 +80,49 @@
               <span class="material-symbols-rounded text-base">edit</span>
               <span>Редактировать</span>
             </M3Button>
+            <M3Button
+              v-else
+              variant="filled"
+              size="sm"
+              @click="authStore.openAuthModal('signup')"
+            >
+              <span class="material-symbols-rounded text-base">person_add</span>
+              <span>Регистрация</span>
+            </M3Button>
           </div>
         </div>
 
         <!-- Имя, юзернейм и био -->
         <div class="flex flex-col">
-          <div class="flex items-center gap-2 flex-wrap">
-            <h2 class="text-xl font-bold text-surface-on leading-tight">
-              {{ authStore.user.first_name }} {{ authStore.user.last_name || '' }}
-            </h2>
-            <!-- Бейдж «Разработчик tobo» -->
-            <div
-              v-if="authStore.isDeveloper"
-              class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-primary-container to-secondary-container text-primary-onContainer font-bold text-[10px] tracking-wide shadow-xs select-none"
-            >
-              <span class="material-symbols-rounded text-xs text-primary">verified</span>
-              <span>Разработчик tobo</span>
+          <template v-if="authStore.isAuthenticated">
+            <div class="flex items-center gap-2 flex-wrap">
+              <h2 class="text-xl font-bold text-surface-on leading-tight">
+                {{ authStore.user.first_name }} {{ authStore.user.last_name || '' }}
+              </h2>
+              <!-- Бейдж «Разработчик tobo» -->
+              <div
+                v-if="authStore.isDeveloper"
+                class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-primary-container to-secondary-container text-primary-onContainer font-bold text-[10px] tracking-wide shadow-xs select-none"
+              >
+                <span class="material-symbols-rounded text-xs text-primary">verified</span>
+                <span>Разработчик tobo</span>
+              </div>
             </div>
-          </div>
-          <span class="text-xs text-primary font-mono mt-0.5">
-            @{{ authStore.user.username }}
-          </span>
-          <p v-if="authStore.user.bio" class="text-xs text-surface-on mt-2.5 leading-relaxed max-w-xl select-text">
-            {{ authStore.user.bio }}
-          </p>
+            <span class="text-xs text-primary font-mono mt-0.5">
+              @{{ authStore.user.username }}
+            </span>
+            <p v-if="authStore.user.bio" class="text-xs text-surface-on mt-2.5 leading-relaxed max-w-xl select-text">
+              {{ authStore.user.bio }}
+            </p>
+          </template>
+          <template v-else>
+            <h2 class="text-xl font-bold text-surface-on leading-tight">
+              Гостевой режим
+            </h2>
+            <p class="text-xs text-surface-onVariant/80 mt-1 max-w-md">
+              Войдите или зарегистрируйтесь, чтобы создать профиль, общаться в каналах и делиться записями.
+            </p>
+          </template>
         </div>
       </div>
     </div>
@@ -169,19 +171,19 @@
         </div>
       </div>
 
-      <!-- Плитка 4: Друзья и подписки -->
-      <div
-        class="p-4 rounded-3xl bg-surface-lowest border border-surface-high/60 shadow-xs hover:shadow-elevation-1 transition-all flex flex-col justify-between h-28 cursor-pointer m3-press-effect"
-        @click="toastStore.show('Контакты: Миша Смирнов, Анна Кузнецова, tobo team', 'info')"
+      <!-- Плитка 4: Друзья и контакты -->
+      <router-link
+        to="/messages"
+        class="p-4 rounded-3xl bg-surface-lowest border border-surface-high/60 shadow-xs hover:shadow-elevation-1 transition-all flex flex-col justify-between h-28 m3-press-effect"
       >
         <div class="w-8 h-8 rounded-2xl bg-amber-500/10 dark:bg-amber-400/15 border border-amber-500/20 text-amber-600 dark:text-amber-300 shadow-xs flex items-center justify-center">
           <span class="material-symbols-rounded text-lg">group</span>
         </div>
         <div>
-          <span class="text-xs font-bold text-surface-on block">Друзья</span>
-          <span class="text-[10px] text-surface-onVariant/60">3 контакта</span>
+          <span class="text-xs font-bold text-surface-on block">Контакты</span>
+          <span class="text-[10px] text-surface-onVariant/60">Чаты и каналы</span>
         </div>
-      </div>
+      </router-link>
     </div>
 
     <!-- Личная стена пользователя: Мои записи и репосты -->
@@ -262,13 +264,8 @@ function goToSavedChat() {
   }
 }
 
-function toggleDemoUser() {
-  if (authStore.user.username === 'alex_tobo') {
-    authStore.switchAccount('misha');
-    toastStore.show('Переключено на аккаунт: Миша Смирнов (@misha_dev)', 'info');
-  } else {
-    authStore.switchAccount('me');
-    toastStore.show('Переключено на аккаунт: Алексей Поляков (@alex_tobo)', 'info');
-  }
+async function handleSignOut() {
+  await authStore.signOut();
+  toastStore.show('Вы успешно вышли из аккаунта', 'info');
 }
 </script>
